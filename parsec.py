@@ -51,10 +51,10 @@ class Value(namedtuple('Value', 'status index value expected')):
 
     def aggregate(self, other = None):
         '''collect the furthest failure from self and other.'''
-        if not other:
-            return self
-        else:
-            return Value(self.status, self.index, self.value, self.expected)
+        if not self.status: return self
+        if not other: return self
+        if not other.status: return other
+        return Value(True, self.index, self.value+other.value, None)
 
     def __str__(self):
         return 'Value {state: {},  @index: {}, values: {}, expected: {}'.format(self.status, self.index, self.value, self.expected)
