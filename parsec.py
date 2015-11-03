@@ -1,4 +1,5 @@
-# coding: utf-8
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 __author__ = 'He Tao, sighingnow@gmail.com'
 __version__ = '1.0.0'
@@ -119,6 +120,17 @@ class Parser(object):
             return res if not res.status else other(text, res.index)
         return compose_parser
 
+    def joint(self, other):
+        '''(+) Joint two parsers into one. Return the aggregate of two results from this two parser.'''
+        @Parser
+        def joint_parser(text, index):
+            fstres = self(text, index)
+            if not fstres: return fstres
+            sndres = other(text, fstres.index)
+            if not sndres: return sndres
+            return fstres.aggregate(sndres)
+        return joint_parser
+
     def choice(self, other):
         '''(|) This combinator implements choice. The parser p | q first applies p. 
         If it succeeds, the value of p is returned. 
@@ -190,6 +202,10 @@ class Parser(object):
         '''Implements the `(^)` operator.'''
         return self.try_choice(other)
 
+    def __add__(self, other):
+        '''Implements the `(+)` operator.'''
+        return self.joint(other)
+
     def __rshift__(self, other):
         '''Implements the `(>>)` operator.'''
         return self.compose(other)
@@ -213,6 +229,10 @@ def bind(p, fn):
 def compose(pa, pb):
     '''Compose two parsers, implements the operator of `(>>)`.'''
     return pa.compose(pb)
+
+def joint(pa, pb):
+    '''Joint two parsers, implements the operator of `(>>)`.'''
+    return pa.joint(pb)
 
 def choice(pa, pb):
     '''Choice one from two parsers, implements the operator of `(|)`.'''
