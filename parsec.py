@@ -30,7 +30,7 @@ class ParseError(RuntimeError):
     def loc(self):
         '''Locate the error position in the source code text.'''
         try:
-            return '{}:{}'.format(loc_info(self.text, self.index))
+            return '{}:{}'.format(*loc_info(self.text, self.index))
         except ValueError as err:
             return '<out of bounds index {!r}>'.format(self.index)
 
@@ -169,29 +169,40 @@ class Parser(object):
         return bind(lambda res: Parser(lambda _, index: Value.success(index, res)))
 
     def times(self, mint, maxt = None):
-        '''Repeat a parser between `mint` and `maxt` times.'''
+        '''Repeat a parser between `mint` and `maxt` times. DO AS MUCH MATCH AS IT CAN.
+        Return a list of values.'''
         maxt = maxt if maxt else mint
         @Parser
         def times_parser(text, index):
-            cnt, values, res = 0, [], None
+            cnt, values, res = 0, Value.success(index, []), None
             while cnt < maxt:
-                res = self(text, index).aggregate(res)
+                res = self(text, index)
                 if res.status:
-                    values.append(res.value)
+                    values = values.aggregate(Value.success(res.index, [res.value]))
                     index, cnt = res.index, cnt+1
                 else:
-                    return res ## failed, throw exception.
-                if cnt >= mint:
+                    if cnt >= mint:
+                        break
+                    else:
+                        return res ## failed, throw exception.
+                if cnt >= maxt: ## finish.
                     break
-            return Value.success(index, values).aggregate(res)
+            return values
         return times_parser
 
+    def count(self, n):
+        '''`count n p` parses n occurrences of p. If n is smaller or equal to zero, 
+        the parser equals to return []. Returns a list of n values returned by p.'''
+        return self.times(n, n)
+
     def many(self):
-        '''Repeat a parser 0 to infinity times.'''
+        '''Repeat a parser 0 to infinity times. DO AS MUCH MATCH AS IT CAN.
+        Return a list of values.'''
         return self.times(0, float('inf'))
 
     def many1(self):
-        '''Repeat a parser 1 to infinity times.'''
+        '''Repeat a parser 1 to infinity times. DO AS MUCH MATCH AS IT CAN.
+        Return a list of values.'''
         return self.times(1, float('inf'))
 
     def __or__(self, other):
@@ -247,15 +258,23 @@ def parsecmap(p, fn):
     return p.map(fn)
 
 def times(p, mint, maxt):
-    '''Repeat a parser between `mint` and `maxt` times.'''
+    '''Repeat a parser between `mint` and `maxt` times. DO AS MUCH MATCH AS IT CAN.
+    Return a list of values.'''
     return p.times(mint, maxt)
 
+def count(p, n):
+    '''`count n p` parses n occurrences of p. If n is smaller or equal to zero, 
+    the parser equals to return []. Returns a list of n values returned by p.'''
+    return p.count(n)
+
 def many(p):
-    '''Repeat a parser 0 to infinity times.'''
+    '''Repeat a parser 0 to infinity times. DO AS MUCH MATCH AS IT CAN.
+    Return a list of values.'''
     return p.many()
 
 def many1(p):
-    '''Repeat a parser 1 to infinity times.'''
+    '''Repeat a parser 1 to infinity times. DO AS MUCH MATCH AS IT CAN.
+    Return a list of values.'''
     return p.many1()
 
 ##########################################################################
