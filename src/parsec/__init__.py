@@ -6,7 +6,6 @@ A univeral Python parser combinator library inspirted by Parsec library of Haske
 '''
 
 __author__ = 'He Tao, sighingnow@gmail.com'
-__version__ = '1.0.0'
 
 import re
 from collections import namedtuple
