@@ -1,20 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+'''
+A univeral Python parser combinator library inspirted by Parsec library of Haskell.
+'''
+
 __author__ = 'He Tao, sighingnow@gmail.com'
 __version__ = '1.0.0'
 
 import re
-from functools import wraps
 from collections import namedtuple
-
-def loc_info(text, index):
-    '''Location of `index` in source code `text`.'''
-    if index > len(text):
-        raise ValueError('Invalid index.')
-    line, last_ln = text.count('\n', 0, index), text.rfind('\n', 0, index)
-    col = index - (last_ln+1)
-    return (line, col)
 
 ##########################################################################
 ## Text.Parsec.Error
@@ -23,15 +18,25 @@ def loc_info(text, index):
 class ParseError(RuntimeError):
     '''Parser error.'''
     def __init__(self, expected, text, index):
+        super().__init__()
         self.expected = expected
         self.text = text
         self.index = index
 
     def loc(self):
         '''Locate the error position in the source code text.'''
+
+        def loc_info(text, index):
+            '''Location of `index` in source code `text`.'''
+            if index > len(text):
+                raise ValueError('Invalid index.')
+            line, last_ln = text.count('\n', 0, index), text.rfind('\n', 0, index)
+            col = index - (last_ln+1)
+            return (line, col)
+
         try:
             return '{}:{}'.format(*loc_info(self.text, self.index))
-        except ValueError as err:
+        except ValueError:
             return '<out of bounds index {!r}>'.format(self.index)
 
     def __str__(self):
@@ -49,15 +54,19 @@ class Value(namedtuple('Value', 'status index value expected')):
         '''Create failure value.'''
         return Value(False, index, None, expected)
 
-    def aggregate(self, other = None):
+    def aggregate(self, other=None):
         '''collect the furthest failure from self and other.'''
-        if not self.status: return self
-        if not other: return self
-        if not other.status: return other
+        if not self.status:
+            return self
+        if not other:
+            return self
+        if not other.status:
+            return other
         return Value(True, self.index, self.value+other.value, None)
 
     def __str__(self):
-        return 'Value {state: {},  @index: {}, values: {}, expected: {}'.format(self.status, self.index, self.value, self.expected)
+        return 'Value: state: {},  @index: {}, values: {}, expected: {}'.format(
+            self.status, self.index, self.value, self.expected)
 
 ##########################################################################
 ## Text.Parsec.Prim
@@ -66,10 +75,10 @@ class Value(namedtuple('Value', 'status index value expected')):
 class Parser(object):
     '''
     A Parser is an object that wraps a function to do the parsing work.
-    Arguments of the function should be a string to be parsed and the index on which to 
-    begin parsing.
-    The function should return either Value.success(next_index, value) if parsing successfully,
-    or Value.failure(index, expected) on the failure. 
+    Arguments of the function should be a string to be parsed and the index on
+    which to begin parsing.
+    The function should return either Value.success(next_index, value) if
+    parsing successfully, or Value.failure(index, expected) on the failure.
     '''
     def __init__(self, fn):
         '''`fn` is the function to wrap.'''
@@ -97,15 +106,16 @@ class Parser(object):
 
     def parse_strict(self, text):
         '''Parse the longest possible prefix of the entire given string.
-        If the parser worked successfully and NONE text was rested, return the result value,
-        else raise a ParseError. 
-        The difference between `parse` and `parse_strict` is that whether entire given text
-        must be used.'''
+        If the parser worked successfully and NONE text was rested, return the
+        result value, else raise a ParseError.
+        The difference between `parse` and `parse_strict` is that whether entire
+        given text must be used.'''
         return (self << eof()).parse_partial(text)[0]
 
     def bind(self, fn):
-        '''This is the monadic binding operation. Returns a parser which, if parser is successful, 
-        passes the result to fn, and continues with the parser returned from fn.'''
+        '''This is the monadic binding operation. Returns a parser which, if
+        parser is successful, passes the result to fn, and continues with the
+        parser returned from fn.'''
         @Parser
         def bind_parser(text, index):
             res = self(text, index)
@@ -113,7 +123,8 @@ class Parser(object):
         return bind_parser
 
     def compose(self, other):
-        '''(>>) Sequentially compose two actions, discarding any value produced by the first.'''
+        '''(>>) Sequentially compose two actions, discarding any value produced
+        by the first.'''
         @Parser
         def compose_parser(text, index):
             res = self(text, index)
@@ -121,19 +132,22 @@ class Parser(object):
         return compose_parser
 
     def joint(self, other):
-        '''(+) Joint two parsers into one. Return the aggregate of two results from this two parser.'''
+        '''(+) Joint two parsers into one. Return the aggregate of two results
+        from this two parser.'''
         @Parser
         def joint_parser(text, index):
             fstres = self(text, index)
-            if not fstres: return fstres
+            if not fstres:
+                return fstres
             sndres = other(text, fstres.index)
-            if not sndres: return sndres
+            if not sndres:
+                return sndres
             return fstres.aggregate(sndres)
         return joint_parser
 
     def choice(self, other):
-        '''(|) This combinator implements choice. The parser p | q first applies p. 
-        If it succeeds, the value of p is returned. 
+        '''(|) This combinator implements choice. The parser p | q first applies p.
+        If it succeeds, the value of p is returned.
         If p fails **without consuming any input**, parser q is tried.
         NOTICE: without backtrack.'''
         @Parser
@@ -143,9 +157,9 @@ class Parser(object):
         return choice_parser
 
     def try_choice(self, other):
-        '''(^) Choice with backtrack. This combinator is used whenever arbitrary 
-        look ahead is needed. The parser p || q first applies p, if it success, 
-        the value of p is returned. If p fails, it pretends that it hasn't consumed 
+        '''(^) Choice with backtrack. This combinator is used whenever arbitrary
+        look ahead is needed. The parser p || q first applies p, if it success,
+        the value of p is returned. If p fails, it pretends that it hasn't consumed
         any input, and then parser q is tried.
         '''
         @Parser
@@ -155,20 +169,25 @@ class Parser(object):
         return try_choice_parser
 
     def ends_with(self, other):
-        '''(<<) Ends with a specified parser, and the end parser hasn't consumed any input.'''
+        '''(<<) Ends with a specified parser, and the end parser hasn't consumed
+        any input.'''
         @Parser
         def ends_with_parser(text, index):
             res = self(text, index)
-            if not res.status: return res
+            if not res.status:
+                return res
             end = other(text, res.index)
-            return res if end.status else Value.failure(end.index, 'ends with {}'.format(end.expected))
+            if end.status:
+                return res
+            else:
+                return Value.failure(end.index, 'ends with {}'.format(end.expected))
         return ends_with_parser
 
     def parsecmap(self, fn):
         '''Returns a parser that transforms the produced value of parser with `fn`.'''
-        return bind(lambda res: Parser(lambda _, index: Value.success(index, res)))
+        return self.bind(lambda res: Parser(lambda _, index: Value.success(index, fn(res))))
 
-    def times(self, mint, maxt = None):
+    def times(self, mint, maxt=None):
         '''Repeat a parser between `mint` and `maxt` times. DO AS MUCH MATCH AS IT CAN.
         Return a list of values.'''
         maxt = maxt if maxt else mint
@@ -191,7 +210,7 @@ class Parser(object):
         return times_parser
 
     def count(self, n):
-        '''`count n p` parses n occurrences of p. If n is smaller or equal to zero, 
+        '''`count n p` parses n occurrences of p. If n is smaller or equal to zero,
         the parser equals to return []. Returns a list of n values returned by p.'''
         return self.times(n, n)
 
@@ -263,7 +282,7 @@ def times(p, mint, maxt):
     return p.times(mint, maxt)
 
 def count(p, n):
-    '''`count n p` parses n occurrences of p. If n is smaller or equal to zero, 
+    '''`count n p` parses n occurrences of p. If n is smaller or equal to zero,
     the parser equals to return []. Returns a list of n values returned by p.'''
     return p.count(n)
 
@@ -284,7 +303,7 @@ def many1(p):
 def one_of(s):
     '''Parser a char from specified string.'''
     @Parser
-    def one_of_parser(text, index = 0):
+    def one_of_parser(text, index=0):
         if index < len(text) and text[index] in s:
             return Value.success(index+1, text[index])
         else:
@@ -294,7 +313,7 @@ def one_of(s):
 def none_of(s):
     '''Parser a char NOT from specified string.'''
     @Parser
-    def none_of_parser(text, index = 0):
+    def none_of_parser(text, index=0):
         if index < len(text) and text[index] not in s:
             return Value.success(index+1, text[index])
         else:
@@ -304,7 +323,7 @@ def none_of(s):
 def space():
     '''Parser a whitespace character.'''
     @Parser
-    def space_parser(text, index = 0):
+    def space_parser(text, index=0):
         if index < len(text) and text[index].isspace():
             return Value.success(index+1, text[index])
         else:
@@ -318,7 +337,7 @@ def spaces():
 def letter():
     '''Parse a letter in alphabet.'''
     @Parser
-    def letter_parser(text, index = 0):
+    def letter_parser(text, index=0):
         if index < len(text) and text[index].isalpha():
             return Value.success(index+1, text[index])
         else:
@@ -328,7 +347,7 @@ def letter():
 def digit():
     '''Parse a digit character.'''
     @Parser
-    def digit_parser(text, index = 0):
+    def digit_parser(text, index=0):
         if index < len(text) and text[index].isdigit():
             return Value.success(index+1, text[index])
         else:
@@ -338,7 +357,7 @@ def digit():
 def eof():
     '''Parser EOF flag of a string.'''
     @Parser
-    def eof_parser(text, index = 0):
+    def eof_parser(text, index=0):
         if index >= len(text):
             return Value.success(index, None)
         else:
@@ -349,7 +368,7 @@ def string(s):
     '''Parser a string.'''
     slen = len(s)
     @Parser
-    def string_parser(text, index = 0):
+    def string_parser(text, index=0):
         if text[index:index+slen] == s:
             return Value.success(index+slen, s)
         else:
