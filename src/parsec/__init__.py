@@ -41,6 +41,10 @@ class ParseError(RuntimeError):
     def __str__(self):
         return 'excepted {} at {}'.format(self.expected, self.loc())
 
+##########################################################################
+## Defination the Value model of parsec.py.
+##########################################################################
+
 class Value(namedtuple('Value', 'status index value expected')):
     '''Represent the result of the Parser.'''
     @staticmethod
@@ -61,7 +65,7 @@ class Value(namedtuple('Value', 'status index value expected')):
             return self
         if not other.status:
             return other
-        return Value(True, self.index, self.value+other.value, None)
+        return Value(True, other.index, self.value+other.value, None)
 
     def __str__(self):
         return 'Value: state: {},  @index: {}, values: {}, expected: {}'.format(
@@ -186,43 +190,6 @@ class Parser(object):
         '''Returns a parser that transforms the produced value of parser with `fn`.'''
         return self.bind(lambda res: Parser(lambda _, index: Value.success(index, fn(res))))
 
-    def times(self, mint, maxt=None):
-        '''Repeat a parser between `mint` and `maxt` times. DO AS MUCH MATCH AS IT CAN.
-        Return a list of values.'''
-        maxt = maxt if maxt else mint
-        @Parser
-        def times_parser(text, index):
-            cnt, values, res = 0, Value.success(index, []), None
-            while cnt < maxt:
-                res = self(text, index)
-                if res.status:
-                    values = values.aggregate(Value.success(res.index, [res.value]))
-                    index, cnt = res.index, cnt+1
-                else:
-                    if cnt >= mint:
-                        break
-                    else:
-                        return res ## failed, throw exception.
-                if cnt >= maxt: ## finish.
-                    break
-            return values
-        return times_parser
-
-    def count(self, n):
-        '''`count n p` parses n occurrences of p. If n is smaller or equal to zero,
-        the parser equals to return []. Returns a list of n values returned by p.'''
-        return self.times(n, n)
-
-    def many(self):
-        '''Repeat a parser 0 to infinity times. DO AS MUCH MATCH AS IT CAN.
-        Return a list of values.'''
-        return self.times(0, float('inf'))
-
-    def many1(self):
-        '''Repeat a parser 1 to infinity times. DO AS MUCH MATCH AS IT CAN.
-        Return a list of values.'''
-        return self.times(1, float('inf'))
-
     def __or__(self, other):
         '''Implements the `(|)` operator.'''
         return self.choice(other)
@@ -275,25 +242,46 @@ def parsecmap(p, fn):
     '''Returns a parser that transforms the produced value of parser with `fn`.'''
     return p.map(fn)
 
-def times(p, mint, maxt):
+##########################################################################
+## Text.Parsec.Combinator
+##########################################################################
+
+def times(p, mint, maxt = None):
     '''Repeat a parser between `mint` and `maxt` times. DO AS MUCH MATCH AS IT CAN.
     Return a list of values.'''
-    return p.times(mint, maxt)
+    maxt = maxt if maxt else mint
+    @Parser
+    def times_parser(text, index):
+        cnt, values, res = 0, Value.success(index, []), None
+        while cnt < maxt:
+            res = p(text, index)
+            if res.status:
+                values = values.aggregate(Value.success(res.index, [res.value]))
+                index, cnt = res.index, cnt+1
+            else:
+                if cnt >= mint:
+                    break
+                else:
+                    return res ## failed, throw exception.
+            if cnt >= maxt: ## finish.
+                break
+        return values
+    return times_parser
 
 def count(p, n):
     '''`count n p` parses n occurrences of p. If n is smaller or equal to zero,
     the parser equals to return []. Returns a list of n values returned by p.'''
-    return p.count(n)
+    return times(p, n, n)
 
 def many(p):
     '''Repeat a parser 0 to infinity times. DO AS MUCH MATCH AS IT CAN.
     Return a list of values.'''
-    return p.many()
+    return times(p, 0, float('inf'))
 
 def many1(p):
     '''Repeat a parser 1 to infinity times. DO AS MUCH MATCH AS IT CAN.
     Return a list of values.'''
-    return p.many1()
+    return times(p, 1, float('inf'))
 
 ##########################################################################
 ## Text.Parsec.Char
@@ -371,7 +359,10 @@ def string(s):
         if text[index:index+slen] == s:
             return Value.success(index+slen, s)
         else:
-            return Value.failure(index, s)
+            matched = 0
+            while index+matched < slen and text[index+matched] == s[matched]:
+                matched = matched + 1
+            return Value.failure(index+matched, s)
     return string_parser
 
 def regex(exp, flags=0):
