@@ -175,6 +175,21 @@ class Parser(object):
             return res if res.status else other(text, index)
         return try_choice_parser
 
+    def skip(self, other):
+        '''(<) Ends with a specified parser, and at the end parser consumed the
+        end flag.'''
+        @Parser
+        def ends_with_parser(text, index):
+            res = self(text, index)
+            if not res.status:
+                return res
+            end = other(text, res.index)
+            if end.status:
+                return Value.success(end.index, res.value)
+            else:
+                return Value.failure(end.index, 'ends with {}'.format(end.expected))
+        return ends_with_parser
+
     def ends_with(self, other):
         '''(<<) Ends with a specified parser, and at the end parser hasn't consumed
         any input.'''
@@ -221,6 +236,10 @@ class Parser(object):
     def __lshift__(self, other):
         '''Implements the `(<<)` operator, means `ends_with`.'''
         return self.ends_with(other)
+
+    def __lt__(self, other):
+        '''Implements the `(<)` operator, means `skip`.'''
+        return self.skip(other)
 
 def parse(p, text, index):
     '''Parse a string and return the result or raise a ParseError.'''
