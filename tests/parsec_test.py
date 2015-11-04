@@ -97,6 +97,11 @@ class ParsecPrimTest(unittest.TestCase):
         parser = string('x').parsecmap(mapfn)
         self.assertEqual(parser.parse('x'), 'xx')
 
+    def test_desc(self):
+        parser = string('x')
+        self.assertEqual(parser.parse('x'), 'x')
+        self.assertRaises(ParseError, parser.parse, 'y')
+
     def test_choice_with_compose(self):
         parser = (string('\\') >> string('y')) | string('z')
         self.assertEqual(parser.parse('\\y'), 'y')

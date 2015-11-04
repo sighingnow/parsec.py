@@ -190,6 +190,10 @@ class Parser(object):
         '''Returns a parser that transforms the produced value of parser with `fn`.'''
         return self.bind(lambda res: Parser(lambda _, index: Value.success(index, fn(res))))
 
+    def desc(self, description):
+        '''Describe a parser, when it failed, print out the description text.'''
+        return self | Parser(lambda _, index: Result.failure(index, description))
+
     def __or__(self, other):
         '''Implements the `(|)` operator.'''
         return self.choice(other)
@@ -241,6 +245,39 @@ def try_choice(pa, pb):
 def parsecmap(p, fn):
     '''Returns a parser that transforms the produced value of parser with `fn`.'''
     return p.map(fn)
+
+##########################################################################
+## Parser Generator
+##########################################################################
+
+# combinator syntax
+def generate(fn):
+    if isinstance(fn, str):
+        return lambda f: generate(f).desc(fn)
+
+    @wraps(fn)
+    @Parser
+    def generated(stream, index):
+        # start up the generator
+        iterator = fn()
+
+        result = None
+        value = None
+        try:
+            while True:
+                next_parser = iterator.send(value)
+                result = next_parser(stream, index).aggregate(result)
+                if not result.status: return result
+                value = result.value
+                index = result.index
+        except StopIteration as stop:
+            returnVal = stop.value
+            if isinstance(returnVal, Parser):
+                return returnVal(stream, index).aggregate(result)
+
+            return Result.success(index, returnVal).aggregate(result)
+
+    return generated.desc(fn.__name__)
 
 ##########################################################################
 ## Text.Parsec.Combinator
