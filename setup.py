@@ -19,8 +19,10 @@ setup(
     ],
     keywords = 'monad parser combinator',
 
-    package_dir={'': 'src'},
-    packages=find_packages('src'),
+    package_dir = {'': 'src'},
+    packages = find_packages('src'),
+
+    test_suite = 'tests.parsec_test',
 )
 
 
