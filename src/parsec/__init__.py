@@ -8,6 +8,7 @@ A univeral Python parser combinator library inspirted by Parsec library of Haske
 __author__ = 'He Tao, sighingnow@gmail.com'
 
 import re
+from functools import wraps
 from collections import namedtuple
 
 ##########################################################################
@@ -22,21 +23,24 @@ class ParseError(RuntimeError):
         self.text = text
         self.index = index
 
+    @staticmethod
+    def loc_info(text, index):
+        '''Location of `index` in source code `text`.'''
+        if index > len(text):
+            raise ValueError('Invalid index.')
+        line, last_ln = text.count('\n', 0, index), text.rfind('\n', 0, index)
+        col = index - (last_ln+1)
+        return (line, col)
+
     def loc(self):
         '''Locate the error position in the source code text.'''
-
-        def loc_info(text, index):
-            '''Location of `index` in source code `text`.'''
-            if index > len(text):
-                raise ValueError('Invalid index.')
-            line, last_ln = text.count('\n', 0, index), text.rfind('\n', 0, index)
-            col = index - (last_ln+1)
-            return (line, col)
-
+        msg = ''
         try:
-            return '{}:{}'.format(*loc_info(self.text, self.index))
+            msg = '{}:{}'.format(*loc_info(self.text, self.index))
         except ValueError:
-            return '<out of bounds index {!r}>'.format(self.index)
+            msg = '<out of bounds index {!r}>'.format(self.index)
+        finally:
+            return msg
 
     def __str__(self):
         return 'excepted {} at {}'.format(self.expected, self.loc())
@@ -172,7 +176,7 @@ class Parser(object):
         return try_choice_parser
 
     def ends_with(self, other):
-        '''(<<) Ends with a specified parser, and the end parser hasn't consumed
+        '''(<<) Ends with a specified parser, and at the end parser hasn't consumed
         any input.'''
         @Parser
         def ends_with_parser(text, index):
@@ -192,30 +196,30 @@ class Parser(object):
 
     def desc(self, description):
         '''Describe a parser, when it failed, print out the description text.'''
-        return self | Parser(lambda _, index: Result.failure(index, description))
+        return self | Parser(lambda _, index: Value.failure(index, description))
 
     def __or__(self, other):
-        '''Implements the `(|)` operator.'''
+        '''Implements the `(|)` operator, means `choice`.'''
         return self.choice(other)
 
     def __xor__(self, other):
-        '''Implements the `(^)` operator.'''
+        '''Implements the `(^)` operator, means `try_choice`.'''
         return self.try_choice(other)
 
     def __add__(self, other):
-        '''Implements the `(+)` operator.'''
+        '''Implements the `(+)` operator, means `joint`.'''
         return self.joint(other)
 
     def __rshift__(self, other):
-        '''Implements the `(>>)` operator.'''
+        '''Implements the `(>>)` operator, means `compose`.'''
         return self.compose(other)
 
     def __irshift__(self, other):
-        '''Implements the `(>>=)` operator.'''
+        '''Implements the `(>>=)` operator, means `bind`.'''
         return self.bind(other)
 
     def __lshift__(self, other):
-        '''Implements the `(<<)` operator.'''
+        '''Implements the `(<<)` operator, means `ends_with`.'''
         return self.ends_with(other)
 
 def parse(p, text, index):
@@ -248,42 +252,43 @@ def parsecmap(p, fn):
 
 ##########################################################################
 ## Parser Generator
+##
+## The most powerful way to construct a parser is to use the generate decorator.
+## the `generate` creates a parser from a generator that should yield parsers.
+## These parsers are applied successively and their results are sent back to the
+## generator using `.send()` protocol. The generator should return the result or
+## another parser, which is equivalent to applying it and returning its result.
 ##########################################################################
 
-# combinator syntax
 def generate(fn):
+    '''Parser generator. (combinator syntax).'''
     if isinstance(fn, str):
         return lambda f: generate(f).desc(fn)
 
     @wraps(fn)
     @Parser
-    def generated(stream, index):
-        # start up the generator
-        iterator = fn()
-
-        result = None
-        value = None
+    def generated(text, index):
+        iterator, value = fn(), None
         try:
             while True:
-                next_parser = iterator.send(value)
-                result = next_parser(stream, index).aggregate(result)
-                if not result.status: return result
-                value = result.value
-                index = result.index
+                parser = iterator.send(value)
+                res = parser(text, index)
+                if not res.status: ## this parser failed.
+                    return res
+                value, index = res.value, res.index ## iterate
         except StopIteration as stop:
-            returnVal = stop.value
-            if isinstance(returnVal, Parser):
-                return returnVal(stream, index).aggregate(result)
-
-            return Result.success(index, returnVal).aggregate(result)
-
+            endval = stop.value
+            if isinstance(endval, Parser):
+                return endval(text, index)
+            else:
+                return Value.success(index, endval)
     return generated.desc(fn.__name__)
 
 ##########################################################################
 ## Text.Parsec.Combinator
 ##########################################################################
 
-def times(p, mint, maxt = None):
+def times(p, mint, maxt=None):
     '''Repeat a parser between `mint` and `maxt` times. DO AS MUCH MATCH AS IT CAN.
     Return a list of values.'''
     maxt = maxt if maxt else mint

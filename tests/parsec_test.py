@@ -155,5 +155,45 @@ class ParsecCharTest(unittest.TestCase):
         self.assertEqual(parser.parse('4'), '4')
         self.assertRaises(ParseError, parser.parse, 'x')
 
+class ParserGeneratorTest(unittest.TestCase):
+    '''Test the implementation of Parser Generator.(generate)'''
+    def test_generate(self):
+        x = y = None
+        @generate
+        def fn():
+            nonlocal x
+            nonlocal y
+            x = yield string('x')
+            y = yield string('y')
+            return string('z')
+        self.assertEqual(fn.parse('xyz'), 'z')
+        self.assertEqual(x, 'x')
+        self.assertEqual(y, 'y')
+
+        x = y = None
+        @generate
+        def fn():
+            nonlocal x, y
+            x = yield digit()
+            y = yield count(digit(), 5)
+        self.assertEqual(fn.parse('123456'), None)
+        self.assertEqual(x, '1')
+        self.assertEqual(y, ['2', '3', '4', '5', '6'])
+
+    def test_generate_desc(self):
+        description = 'expected description for fn'
+
+        @generate(description)
+        def fn():
+            yield string('t')
+
+        with self.assertRaises(ParseError) as err: fn.parse('x')
+
+        ex = err.exception
+
+        self.assertEqual(ex.expected, description)
+        self.assertEqual(ex.text, 'x')
+        self.assertEqual(ex.index, 0)
+
 if __name__ == '__main__':
     unittest.main()
