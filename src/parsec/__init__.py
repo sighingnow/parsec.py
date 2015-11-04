@@ -209,6 +209,19 @@ class Parser(object):
         '''Returns a parser that transforms the produced value of parser with `fn`.'''
         return self.bind(lambda res: Parser(lambda _, index: Value.success(index, fn(res))))
 
+    def mark(self):
+        '''Mark the line and column information of the result of this parser.'''
+        def pos(text, index):
+            return ParseError.loc_info(text, index)
+        @Parser
+        def mark_parser(text, index):
+            res = self(text, index)
+            if res.status:
+                return Value.success(res.index, (pos(text, index), res.value, pos(text, res.index)))
+            else:
+                return res ## failed.
+        return mark_parser
+
     def desc(self, description):
         '''Describe a parser, when it failed, print out the description text.'''
         return self | Parser(lambda _, index: Value.failure(index, description))
@@ -268,6 +281,10 @@ def try_choice(pa, pb):
 def parsecmap(p, fn):
     '''Returns a parser that transforms the produced value of parser with `fn`.'''
     return p.map(fn)
+
+def mark(p):
+    '''Mark the line and column information of the result of the parser `p`.'''
+    return p.mark()
 
 ##########################################################################
 ## Parser Generator

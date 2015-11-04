@@ -102,6 +102,23 @@ class ParsecPrimTest(unittest.TestCase):
         self.assertEqual(parser.parse('x'), 'x')
         self.assertRaises(ParseError, parser.parse, 'y')
 
+    def test_mark(self):
+        parser = many(mark(many(letter())) < string("\n"))
+
+        lines = parser.parse("asdf\nqwer\n")
+
+        self.assertEqual(len(lines), 2)
+
+        (start, letters, end) = lines[0]
+        self.assertEqual(start, (0, 0))
+        self.assertEqual(letters, ['a', 's', 'd', 'f'])
+        self.assertEqual(end, (0, 4))
+
+        (start, letters, end) = lines[1]
+        self.assertEqual(start, (1, 0))
+        self.assertEqual(letters, ['q', 'w', 'e', 'r'])
+        self.assertEqual(end, (1, 4))
+
     def test_choice_with_compose(self):
         parser = (string('\\') >> string('y')) | string('z')
         self.assertEqual(parser.parse('\\y'), 'y')
