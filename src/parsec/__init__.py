@@ -117,7 +117,7 @@ class Parser(object):
         result value, else raise a ParseError.
         The difference between `parse` and `parse_strict` is that whether entire
         given text must be used.'''
-        return (self << eof()).parse_partial(text)[0]
+        return (self < eof()).parse_partial(text)[0]
 
     def bind(self, fn):
         '''This is the monadic binding operation. Returns a parser which, if
@@ -177,7 +177,7 @@ class Parser(object):
         return try_choice_parser
 
     def skip(self, other):
-        '''(<) Ends with a specified parser, and at the end parser consumed the
+        '''(<<) Ends with a specified parser, and at the end parser consumed the
         end flag.'''
         @Parser
         def ends_with_parser(text, index):
@@ -192,7 +192,7 @@ class Parser(object):
         return ends_with_parser
 
     def ends_with(self, other):
-        '''(<<) Ends with a specified parser, and at the end parser hasn't consumed
+        '''(<) Ends with a specified parser, and at the end parser hasn't consumed
         any input.'''
         @Parser
         def ends_with_parser(text, index):
@@ -253,11 +253,11 @@ class Parser(object):
 
     def __lshift__(self, other):
         '''Implements the `(<<)` operator, means `ends_with`.'''
-        return self.ends_with(other)
+        return self.skip(other)
 
     def __lt__(self, other):
         '''Implements the `(<)` operator, means `skip`.'''
-        return self.skip(other)
+        return self.ends_with(other)
 
 def parse(p, text, index):
     '''Parse a string and return the result or raise a ParseError.'''
@@ -272,7 +272,7 @@ def compose(pa, pb):
     return pa.compose(pb)
 
 def joint(pa, pb):
-    '''Joint two parsers, implements the operator of `(>>)`.'''
+    '''Joint two parsers, implements the operator of `(+)`.'''
     return pa.joint(pb)
 
 def choice(pa, pb):
@@ -282,6 +282,16 @@ def choice(pa, pb):
 def try_choice(pa, pb):
     '''Choice one from two parsers with backtrack, implements the operator of `(^)`.'''
     return pa.try_choice(pb)
+
+def skip(pa, pb):
+    '''Ends with a specified parser, and at the end parser consumed the end flag.
+    Implements the operator of `(<<)`.'''
+    return pa.skip(pb)
+
+def ends_with(pa, pb):
+    '''Ends with a specified parser, and at the end parser hasn't consumed any input.
+    Implements the operator of `(<)`.'''
+    return pa.ends_with(pb)
 
 def parsecmap(p, fn):
     '''Returns a parser that transforms the produced value of parser with `fn`.'''

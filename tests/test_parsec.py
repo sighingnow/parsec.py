@@ -94,7 +94,7 @@ class ParsecPrimTest(unittest.TestCase):
         self.assertEqual(parser.parse('xz'), 'xz')
 
     def test_ends_with(self):
-        parser = string('x') << string('y')
+        parser = string('x') < string('y')
         self.assertEqual(parser.parse('xy'), 'x')
         self.assertRaises(ParseError, parser.parse, 'xx')
 
@@ -112,7 +112,7 @@ class ParsecPrimTest(unittest.TestCase):
         self.assertRaises(ParseError, parser.parse, 'y')
 
     def test_mark(self):
-        parser = many(mark(many(letter())) < string("\n"))
+        parser = many(mark(many(letter())) << string("\n"))
 
         lines = parser.parse("asdf\nqwer\n")
 
