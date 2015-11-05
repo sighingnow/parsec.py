@@ -34,13 +34,10 @@ class ParseError(RuntimeError):
 
     def loc(self):
         '''Locate the error position in the source code text.'''
-        msg = ''
         try:
-            msg = '{}:{}'.format(*loc_info(self.text, self.index))
+            return '{}:{}'.format(*ParseError.loc_info(self.text, self.index))
         except ValueError:
-            msg = '<out of bounds index {!r}>'.format(self.index)
-        finally:
-            return msg
+            return '<out of bounds index {!r}>'.format(self.index)
 
     def __str__(self):
         return 'excepted {} at {}'.format(self.expected, self.loc())
