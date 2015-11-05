@@ -1,3 +1,12 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+'''
+Test the basic functions of parsec.py.
+'''
+
+__author__ = 'He Tao, sighingnow@gmail.com'
+
 from parsec import *
 
 import random
@@ -211,6 +220,16 @@ class ParserGeneratorTest(unittest.TestCase):
         self.assertEqual(ex.expected, description)
         self.assertEqual(ex.text, 'x')
         self.assertEqual(ex.index, 0)
+
+    def test_generate_backtracking(self):
+        @generate
+        def xy():
+            yield string('x')
+            yield string('y')
+            assert False
+        parser = xy | string('z')
+        # should not finish executing xy()
+        self.assertEqual(parser.parse('z'), 'z')
 
 if __name__ == '__main__':
     unittest.main()

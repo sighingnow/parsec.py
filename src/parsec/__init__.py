@@ -122,7 +122,8 @@ class Parser(object):
     def bind(self, fn):
         '''This is the monadic binding operation. Returns a parser which, if
         parser is successful, passes the result to fn, and continues with the
-        parser returned from fn.'''
+        parser returned from fn.
+        '''
         @Parser
         def bind_parser(text, index):
             res = self(text, index)
@@ -209,6 +210,10 @@ class Parser(object):
         '''Returns a parser that transforms the produced value of parser with `fn`.'''
         return self.bind(lambda res: Parser(lambda _, index: Value.success(index, fn(res))))
 
+    def result(self, res):
+        '''Return a value according to the param `res` when parse successfully.'''
+        return self >> Parser(lambda _, index: Value.success(index, res))
+
     def mark(self):
         '''Mark the line and column information of the result of this parser.'''
         def pos(text, index):
@@ -280,11 +285,19 @@ def try_choice(pa, pb):
 
 def parsecmap(p, fn):
     '''Returns a parser that transforms the produced value of parser with `fn`.'''
-    return p.map(fn)
+    return p.parsecmap(fn)
+
+def result(p, res):
+    '''Return a value according to the param `res` when parse successfully.'''
+    return p.result(res)
 
 def mark(p):
     '''Mark the line and column information of the result of the parser `p`.'''
     return p.mark()
+
+def desc(p, description):
+    '''Describe a parser, when it failed, print out the description text.'''
+    return p.desc(description)
 
 ##########################################################################
 ## Parser Generator
