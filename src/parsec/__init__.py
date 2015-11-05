@@ -417,7 +417,7 @@ def space():
 
 def spaces():
     '''Parser zero or more whitespace characters.'''
-    return many(space)
+    return many(space())
 
 def letter():
     '''Parse a letter in alphabet.'''
