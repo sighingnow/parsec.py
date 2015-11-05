@@ -12,7 +12,7 @@ import unittest
 def additional_tests():
     '''Accumulate all unit test cases.'''
     loader = unittest.defaultTestLoader
-    additional_names = []
+    additional_names = ['examples']
     suite = unittest.TestSuite()
     for name in additional_names:
         suite.addTests(loader.discover(name))
