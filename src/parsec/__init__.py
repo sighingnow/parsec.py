@@ -451,14 +451,14 @@ def eof():
 
 def string(s):
     '''Parser a string.'''
-    slen = len(s)
     @Parser
     def string_parser(text, index=0):
+        slen, tlen = len(s), len(text)
         if text[index:index+slen] == s:
             return Value.success(index+slen, s)
         else:
             matched = 0
-            while index+matched < slen and text[index+matched] == s[matched]:
+            while matched < slen and index+matched < tlen and text[index+matched] == s[matched]:
                 matched = matched + 1
             return Value.failure(index+matched, s)
     return string_parser
