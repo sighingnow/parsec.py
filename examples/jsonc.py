@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 '''
-Test the basic functions of parsec.py.
+Use parsec.py to parse JSON text.
 '''
 
 __author__ = 'He Tao, sighingnow@gmail.com'
