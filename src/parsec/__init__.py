@@ -40,7 +40,7 @@ class ParseError(RuntimeError):
             return '<out of bounds index {!r}>'.format(self.index)
 
     def __str__(self):
-        return 'excepted {} at {}'.format(self.expected, self.loc())
+        return 'expected {} at {}'.format(self.expected, self.loc())
 
 ##########################################################################
 ## Defination the Value model of parsec.py.
