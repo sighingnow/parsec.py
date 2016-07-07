@@ -381,6 +381,79 @@ def many1(p):
     Return a list of values.'''
     return times(p, 1, float('inf'))
 
+def separated(p, sep, mint, maxt=None, end=None):
+    '''Repeat a parser `p` separated by `s` between `mint` and `maxt` times.
+    When `end` is None, a trailing separator is optional.
+    When `end` is True, a trailing separator is required.
+    When `end` is False, a trailing separator is not allowed.
+    MATCHES AS MUCH AS POSSIBLE.
+    Return list of values returned by `p`.'''
+    maxt = maxt if maxt else mint
+    @Parser
+    def sep_parser(text, index):
+        cnt, values, res = 0, Value.success(index, []), None
+        while cnt < maxt:
+            if end in [False, None] and cnt > 0:
+                res = sep(text, index)
+                if res.status: ## `sep` found, consume it (advance index)
+                    index, values = res.index, Value.success(res.index, values.value)
+                elif cnt < mint:
+                    return res ## error: need more elemnts, but no `sep` found.
+                else:
+                    break
+
+            res = p(text, index)
+            if res.status:
+                values = values.aggregate(Value.success(res.index, [res.value]))
+                index, cnt = res.index, cnt+1
+            elif cnt >= mint:
+                break
+            else:
+                return res ## error: need more elements, but no `p` found.
+
+            if end is True:
+                res = sep(text, index)
+                if res.status:
+                    index, values = res.index, Value.success(res.index, values.value)
+                else:
+                    return res # error: trailing `sep` not found
+
+            if cnt >= maxt:
+                break
+        return values
+    return sep_parser
+
+def sepBy(p, sep):
+    '''`sepBy(p, sep)` parses zero or more occurrences of p, separated by `sep`.
+    Returns a list of values returned by `p`.'''
+    return separated(p, sep, 0, maxt=float('inf'), end=False)
+
+def sepBy1(p, sep):
+    '''`sepBy1(p, sep)` parses one or more occurrences of `p`, separated by
+    `sep`. Returns a list of values returned by `p`.'''
+    return separated(p, sep, 1, maxt=float('inf'), end=False)
+
+def endBy(p, sep):
+    '''`endBy(p, sep)` parses zero or more occurrences of `p`, seperated and
+    ended by `sep`. Returns a list of values returned by `p`.'''
+    return separated(p, sep, 0, maxt=float('inf'), end=True)
+
+def endBy1(p, sep):
+    '''`endBy1(p, sep) parses one or more occurrences of `p`, seperated and
+    ended by `sep`. Returns a list of values returned by `p`.'''
+    return separated(p, sep, 1, maxt=float('inf'), end=True)
+
+def sepEndBy(p, sep):
+    '''`sepEndBy(p, sep)` parses zero or more occurrences of `p`, separated and
+    optionally ended by `sep`. Returns a list of
+    values returned by `p`.'''
+    return separated(p, sep, 0, maxt=float('inf'))
+
+def sepEndBy1(p, sep):
+    '''`sepEndBy1(p, sep)` parses one or more occurrences of `p`, separated and
+    optionally ended by `sep`. Returns a list of values returned by `p`.'''
+    return separated(p, sep, 1, maxt=float('inf'))
+
 ##########################################################################
 ## Text.Parsec.Char
 ##########################################################################
