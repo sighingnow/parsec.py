@@ -61,10 +61,9 @@ def quoted():
 def array():
     '''Parse array element in JSON text.'''
     yield lbrack
-    first = yield value
-    rest = yield many((comma >> value))
+    elements = yield sepBy(value, comma)
     yield rbrack
-    return [first] + rest
+    return elements
 
 @generate
 def object_pair():
@@ -78,10 +77,9 @@ def object_pair():
 def json_object():
     '''Parse json object.'''
     yield lbrace
-    first = yield object_pair
-    rest = yield many(comma >> object_pair)
+    pairs = yield sepBy(object_pair, comma)
     yield rbrace
-    return dict([first] + rest)
+    return dict(pairs)
 
 value = quoted | number() | json_object | array | true | false | null
 

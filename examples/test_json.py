@@ -18,7 +18,7 @@ class TestJsonc(unittest.TestCase):
     '''Test the implementation of JSON parser.'''
     def test_simple(self):
         self.assertEqual(
-            jsonc.parse('{"a": "true", "b": false, "C": ["a", "b", "C"]}'), 
+            jsonc.parse('{"a": "true", "b": false, "C": ["a", "b", "C"]}'),
             {"a": "true", "b": False, "C": ["a", "b", "C"]})
 
     def test_number(self):
@@ -39,9 +39,9 @@ class TestJsonc(unittest.TestCase):
             {
                 "a": {
                     "a": "x",
-                    "b": "t", 
+                    "b": "t",
                     "c": {
-                        "a": true, 
+                        "a": true,
                         "c": [true, false, true]
                     }
                 }
@@ -50,6 +50,11 @@ class TestJsonc(unittest.TestCase):
         self.assertEqual(result['a']['a'], 'x')
         self.assertEqual(result['a']['c']['a'], True)
         self.assertEqual(result['a']['c']['c'], [True, False, True])
+
+    def test_empty(self):
+        self.assertEqual(jsonc.parse('{}'), {})
+        result = jsonc.parse('{"a":[]}')
+        self.assertEqual(result['a'], [])
 
 if __name__ == '__main__':
     unittest.main()
