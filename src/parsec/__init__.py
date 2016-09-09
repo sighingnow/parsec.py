@@ -67,6 +67,19 @@ class Value(namedtuple('Value', 'status index value expected')):
         if not other.status:
             return other
         return Value(True, other.index, self.value+other.value, None)
+    
+    @staticmethod
+    def combinate(values):
+        '''aggregate multiple values into tuple'''
+        prev_v = None
+        for v in values:
+            if prev_v:
+                if not v:
+                    return prev_v
+            if not v.status:
+                return v
+        out_values = tuple([v.value for v in values])
+        return Value(True, values[-1].index, out_values, None)
 
     def __str__(self):
         return 'Value: state: {},  @index: {}, values: {}, expected: {}'.format(
@@ -136,19 +149,11 @@ class Parser(object):
             return res if not res.status else other(text, res.index)
         return compose_parser
 
-    def joint(self, other):
-        '''(+) Joint two parsers into one. Return the aggregate of two results
+    def joint(self, *parsers):
+        '''(+) Joint two or more parsers into one. Return the aggregate of two results
         from this two parser.'''
-        @Parser
-        def joint_parser(text, index):
-            fstres = self(text, index)
-            if not fstres:
-                return fstres
-            sndres = other(text, fstres.index)
-            if not sndres:
-                return sndres
-            return fstres.aggregate(sndres)
-        return joint_parser
+        return joint(self, *parsers)
+
 
     def choice(self, other):
         '''(|) This combinator implements choice. The parser p | q first applies p.
@@ -268,9 +273,21 @@ def compose(pa, pb):
     '''Compose two parsers, implements the operator of `(>>)`.'''
     return pa.compose(pb)
 
-def joint(pa, pb):
-    '''Joint two parsers, implements the operator of `(+)`.'''
-    return pa.joint(pb)
+def joint(*parsers):
+    '''Joint two or more parsers, implements the operator of `(+)`.'''
+    @Parser
+    def joint_parser(text, index):
+        values = []
+        prev_v = None
+        for p in parsers:
+            if prev_v:
+                index = prev_v.index
+            prev_v = v = p(text, index)
+            if not v:
+                return v
+            values.append(v)
+        return Value.combinate(values)
+    return joint_parser
 
 def choice(pa, pb):
     '''Choice one from two parsers, implements the operator of `(|)`.'''
@@ -548,5 +565,3 @@ def regex(exp, flags=0):
         else:
             return Value.failure(index, exp.pattern)
     return regex_parser
-
-
