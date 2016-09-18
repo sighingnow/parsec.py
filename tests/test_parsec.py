@@ -69,7 +69,7 @@ class ParsecPrimTest(unittest.TestCase):
 
     def test_joint(self):
         parser = string('x') + string('y')
-        self.assertEqual(parser.parse('xy'), 'xy')
+        self.assertEqual(parser.parse('xy'), ('x', 'y'))
         self.assertRaises(ParseError, parser.parse, 'y')
         self.assertRaises(ParseError, parser.parse, 'z')
 
