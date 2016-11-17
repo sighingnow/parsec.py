@@ -7,15 +7,15 @@ Test the implementation of JSON text parser in json.py.
 
 __author__ = 'He Tao, sighingnow@gmail.com'
 
+import unittest
+
 from parsec import *
 from jsonc import *
 
-import re
-import random
-import unittest
 
 class TestJsonc(unittest.TestCase):
     '''Test the implementation of JSON parser.'''
+
     def test_simple(self):
         self.assertEqual(
             jsonc.parse('{"a": "true", "b": false, "C": ["a", "b", "C"]}'),
@@ -31,8 +31,11 @@ class TestJsonc(unittest.TestCase):
     def test_array(self):
         result = jsonc.parse('{"a": ["a", ["b", true], "d"]}')
         self.assertEqual(result["a"], ["a", ["b", True], "d"])
-        self.assertRaises(ParseError, jsonc.parse, '{"a": ["a", ["b", true], "d"}')
-        self.assertRaises(ParseError, jsonc.parse, '{"a": ["a", "b", true], "d"}')
+        self.assertRaises(ParseError, jsonc.parse,
+                          '{"a": ["a", ["b", true], "d"}')
+
+        self.assertRaises(ParseError, jsonc.parse,
+                          '{"a": ["a", "b", true], "d"}')
 
     def test_nest(self):
         result = jsonc.parse('''

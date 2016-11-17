@@ -12,11 +12,13 @@ from functools import wraps
 from collections import namedtuple
 
 ##########################################################################
-## Text.Parsec.Error
+# Text.Parsec.Error
 ##########################################################################
+
 
 class ParseError(RuntimeError):
     '''Parser error.'''
+
     def __init__(self, expected, text, index):
         super().__init__()
         self.expected = expected
@@ -29,7 +31,7 @@ class ParseError(RuntimeError):
         if index > len(text):
             raise ValueError('Invalid index.')
         line, last_ln = text.count('\n', 0, index), text.rfind('\n', 0, index)
-        col = index - (last_ln+1)
+        col = index - (last_ln + 1)
         return (line, col)
 
     def loc(self):
@@ -43,8 +45,9 @@ class ParseError(RuntimeError):
         return 'expected {} at {}'.format(self.expected, self.loc())
 
 ##########################################################################
-## Defination the Value model of parsec.py.
+# Defination the Value model of parsec.py.
 ##########################################################################
+
 
 class Value(namedtuple('Value', 'status index value expected')):
     '''Represent the result of the Parser.'''
@@ -66,8 +69,8 @@ class Value(namedtuple('Value', 'status index value expected')):
             return self
         if not other.status:
             return other
-        return Value(True, other.index, self.value+other.value, None)
-    
+        return Value(True, other.index, self.value + other.value, None)
+
     @staticmethod
     def combinate(values):
         '''aggregate multiple values into tuple'''
@@ -86,8 +89,9 @@ class Value(namedtuple('Value', 'status index value expected')):
             self.status, self.index, self.value, self.expected)
 
 ##########################################################################
-## Text.Parsec.Prim
+# Text.Parsec.Prim
 ##########################################################################
+
 
 class Parser(object):
     '''
@@ -97,6 +101,7 @@ class Parser(object):
     The function should return either Value.success(next_index, value) if
     parsing successfully, or Value.failure(index, expected) on the failure.
     '''
+
     def __init__(self, fn):
         '''`fn` is the function to wrap.'''
         self.fn = fn
@@ -114,7 +119,8 @@ class Parser(object):
         Return a tuple of the result value and the rest of the string.
         If failed, raise a ParseError. '''
         if not isinstance(text, str):
-            raise TypeError('Can only parsing string but got {!r}'.format(text))
+            raise TypeError(
+                'Can only parsing string but got {!r}'.format(text))
         res = self(text, 0)
         if res.status:
             return (res.value, text[res.index:])
@@ -153,7 +159,6 @@ class Parser(object):
         '''(+) Joint two or more parsers into one. Return the aggregate of two results
         from this two parser.'''
         return joint(self, *parsers)
-
 
     def choice(self, other):
         '''(|) This combinator implements choice. The parser p | q first applies p.
@@ -220,13 +225,14 @@ class Parser(object):
         '''Mark the line and column information of the result of this parser.'''
         def pos(text, index):
             return ParseError.loc_info(text, index)
+
         @Parser
         def mark_parser(text, index):
             res = self(text, index)
             if res.status:
                 return Value.success(res.index, (pos(text, index), res.value, pos(text, res.index)))
             else:
-                return res ## failed.
+                return res  # failed.
         return mark_parser
 
     def desc(self, description):
@@ -261,17 +267,21 @@ class Parser(object):
         '''Implements the `(<)` operator, means `skip`.'''
         return self.ends_with(other)
 
+
 def parse(p, text, index):
     '''Parse a string and return the result or raise a ParseError.'''
     return p.parse(text, index)
+
 
 def bind(p, fn):
     '''Bind two parsers, implements the operator of `(>>=)`.'''
     return p.bind(fn)
 
+
 def compose(pa, pb):
     '''Compose two parsers, implements the operator of `(>>)`.'''
     return pa.compose(pb)
+
 
 def joint(*parsers):
     '''Joint two or more parsers, implements the operator of `(+)`.'''
@@ -289,49 +299,58 @@ def joint(*parsers):
         return Value.combinate(values)
     return joint_parser
 
+
 def choice(pa, pb):
     '''Choice one from two parsers, implements the operator of `(|)`.'''
     return pa.choice(pb)
 
+
 def try_choice(pa, pb):
     '''Choice one from two parsers with backtrack, implements the operator of `(^)`.'''
     return pa.try_choice(pb)
+
 
 def skip(pa, pb):
     '''Ends with a specified parser, and at the end parser consumed the end flag.
     Implements the operator of `(<<)`.'''
     return pa.skip(pb)
 
+
 def ends_with(pa, pb):
     '''Ends with a specified parser, and at the end parser hasn't consumed any input.
     Implements the operator of `(<)`.'''
     return pa.ends_with(pb)
 
+
 def parsecmap(p, fn):
     '''Returns a parser that transforms the produced value of parser with `fn`.'''
     return p.parsecmap(fn)
+
 
 def result(p, res):
     '''Return a value according to the param `res` when parse successfully.'''
     return p.result(res)
 
+
 def mark(p):
     '''Mark the line and column information of the result of the parser `p`.'''
     return p.mark()
+
 
 def desc(p, description):
     '''Describe a parser, when it failed, print out the description text.'''
     return p.desc(description)
 
 ##########################################################################
-## Parser Generator
+# Parser Generator
 ##
-## The most powerful way to construct a parser is to use the generate decorator.
-## the `generate` creates a parser from a generator that should yield parsers.
-## These parsers are applied successively and their results are sent back to the
-## generator using `.send()` protocol. The generator should return the result or
-## another parser, which is equivalent to applying it and returning its result.
+# The most powerful way to construct a parser is to use the generate decorator.
+# the `generate` creates a parser from a generator that should yield parsers.
+# These parsers are applied successively and their results are sent back to the
+# generator using `.send()` protocol. The generator should return the result or
+# another parser, which is equivalent to applying it and returning its result.
 ##########################################################################
+
 
 def generate(fn):
     '''Parser generator. (combinator syntax).'''
@@ -346,9 +365,9 @@ def generate(fn):
             while True:
                 parser = iterator.send(value)
                 res = parser(text, index)
-                if not res.status: ## this parser failed.
+                if not res.status:  # this parser failed.
                     return res
-                value, index = res.value, res.index ## iterate
+                value, index = res.value, res.index  # iterate
         except StopIteration as stop:
             endval = stop.value
             if isinstance(endval, Parser):
@@ -358,45 +377,52 @@ def generate(fn):
     return generated.desc(fn.__name__)
 
 ##########################################################################
-## Text.Parsec.Combinator
+# Text.Parsec.Combinator
 ##########################################################################
+
 
 def times(p, mint, maxt=None):
     '''Repeat a parser between `mint` and `maxt` times. DO AS MUCH MATCH AS IT CAN.
     Return a list of values.'''
     maxt = maxt if maxt else mint
+
     @Parser
     def times_parser(text, index):
         cnt, values, res = 0, Value.success(index, []), None
         while cnt < maxt:
             res = p(text, index)
             if res.status:
-                values = values.aggregate(Value.success(res.index, [res.value]))
-                index, cnt = res.index, cnt+1
+                values = values.aggregate(
+                    Value.success(res.index, [res.value]))
+                index, cnt = res.index, cnt + 1
             else:
                 if cnt >= mint:
                     break
                 else:
-                    return res ## failed, throw exception.
-            if cnt >= maxt: ## finish.
+                    return res  # failed, throw exception.
+            if cnt >= maxt:  # finish.
                 break
         return values
     return times_parser
+
 
 def count(p, n):
     '''`count n p` parses n occurrences of p. If n is smaller or equal to zero,
     the parser equals to return []. Returns a list of n values returned by p.'''
     return times(p, n, n)
 
+
 def many(p):
     '''Repeat a parser 0 to infinity times. DO AS MUCH MATCH AS IT CAN.
     Return a list of values.'''
     return times(p, 0, float('inf'))
 
+
 def many1(p):
     '''Repeat a parser 1 to infinity times. DO AS MUCH MATCH AS IT CAN.
     Return a list of values.'''
     return times(p, 1, float('inf'))
+
 
 def separated(p, sep, mint, maxt=None, end=None):
     '''Repeat a parser `p` separated by `s` between `mint` and `maxt` times.
@@ -406,59 +432,68 @@ def separated(p, sep, mint, maxt=None, end=None):
     MATCHES AS MUCH AS POSSIBLE.
     Return list of values returned by `p`.'''
     maxt = maxt if maxt else mint
+
     @Parser
     def sep_parser(text, index):
         cnt, values, res = 0, Value.success(index, []), None
         while cnt < maxt:
             if end in [False, None] and cnt > 0:
                 res = sep(text, index)
-                if res.status: ## `sep` found, consume it (advance index)
-                    index, values = res.index, Value.success(res.index, values.value)
+                if res.status:  # `sep` found, consume it (advance index)
+                    index, values = res.index, Value.success(
+                        res.index, values.value)
                 elif cnt < mint:
-                    return res ## error: need more elemnts, but no `sep` found.
+                    return res  # error: need more elemnts, but no `sep` found.
                 else:
                     break
 
             res = p(text, index)
             if res.status:
-                values = values.aggregate(Value.success(res.index, [res.value]))
-                index, cnt = res.index, cnt+1
+                values = values.aggregate(
+                    Value.success(res.index, [res.value]))
+                index, cnt = res.index, cnt + 1
             elif cnt >= mint:
                 break
             else:
-                return res ## error: need more elements, but no `p` found.
+                return res  # error: need more elements, but no `p` found.
 
             if end is True:
                 res = sep(text, index)
                 if res.status:
-                    index, values = res.index, Value.success(res.index, values.value)
+                    index, values = res.index, Value.success(
+                        res.index, values.value)
                 else:
-                    return res # error: trailing `sep` not found
+                    return res  # error: trailing `sep` not found
 
             if cnt >= maxt:
                 break
         return values
     return sep_parser
 
+
 def sepBy(p, sep):
     '''`sepBy(p, sep)` parses zero or more occurrences of p, separated by `sep`.
     Returns a list of values returned by `p`.'''
     return separated(p, sep, 0, maxt=float('inf'), end=False)
+
 
 def sepBy1(p, sep):
     '''`sepBy1(p, sep)` parses one or more occurrences of `p`, separated by
     `sep`. Returns a list of values returned by `p`.'''
     return separated(p, sep, 1, maxt=float('inf'), end=False)
 
+
 def endBy(p, sep):
     '''`endBy(p, sep)` parses zero or more occurrences of `p`, seperated and
     ended by `sep`. Returns a list of values returned by `p`.'''
     return separated(p, sep, 0, maxt=float('inf'), end=True)
 
+
 def endBy1(p, sep):
     '''`endBy1(p, sep) parses one or more occurrences of `p`, seperated and
     ended by `sep`. Returns a list of values returned by `p`.'''
     return separated(p, sep, 1, maxt=float('inf'), end=True)
+
 
 def sepEndBy(p, sep):
     '''`sepEndBy(p, sep)` parses zero or more occurrences of `p`, separated and
@@ -466,68 +501,76 @@ def sepEndBy(p, sep):
     values returned by `p`.'''
     return separated(p, sep, 0, maxt=float('inf'))
 
+
 def sepEndBy1(p, sep):
     '''`sepEndBy1(p, sep)` parses one or more occurrences of `p`, separated and
     optionally ended by `sep`. Returns a list of values returned by `p`.'''
     return separated(p, sep, 1, maxt=float('inf'))
 
 ##########################################################################
-## Text.Parsec.Char
+# Text.Parsec.Char
 ##########################################################################
+
 
 def one_of(s):
     '''Parser a char from specified string.'''
     @Parser
     def one_of_parser(text, index=0):
         if index < len(text) and text[index] in s:
-            return Value.success(index+1, text[index])
+            return Value.success(index + 1, text[index])
         else:
             return Value.failure(index, 'one of {}'.format(s))
     return one_of_parser
+
 
 def none_of(s):
     '''Parser a char NOT from specified string.'''
     @Parser
     def none_of_parser(text, index=0):
         if index < len(text) and text[index] not in s:
-            return Value.success(index+1, text[index])
+            return Value.success(index + 1, text[index])
         else:
             return Value.failure(index, 'none of {}'.format(s))
     return none_of_parser
+
 
 def space():
     '''Parser a whitespace character.'''
     @Parser
     def space_parser(text, index=0):
         if index < len(text) and text[index].isspace():
-            return Value.success(index+1, text[index])
+            return Value.success(index + 1, text[index])
         else:
             return Value.failure(index, 'one space')
     return space_parser
 
+
 def spaces():
     '''Parser zero or more whitespace characters.'''
     return many(space())
+
 
 def letter():
     '''Parse a letter in alphabet.'''
     @Parser
     def letter_parser(text, index=0):
         if index < len(text) and text[index].isalpha():
-            return Value.success(index+1, text[index])
+            return Value.success(index + 1, text[index])
         else:
             return Value.failure(index, 'a letter')
     return letter_parser
+
 
 def digit():
     '''Parse a digit character.'''
     @Parser
     def digit_parser(text, index=0):
         if index < len(text) and text[index].isdigit():
-            return Value.success(index+1, text[index])
+            return Value.success(index + 1, text[index])
         else:
             return Value.failure(index, 'a digit')
     return digit_parser
+
 
 def eof():
     '''Parser EOF flag of a string.'''
@@ -539,24 +582,27 @@ def eof():
             return Value.failure(index, 'EOF')
     return eof_parser
 
+
 def string(s):
     '''Parser a string.'''
     @Parser
     def string_parser(text, index=0):
         slen, tlen = len(s), len(text)
-        if text[index:index+slen] == s:
-            return Value.success(index+slen, s)
+        if text[index:index + slen] == s:
+            return Value.success(index + slen, s)
         else:
             matched = 0
-            while matched < slen and index+matched < tlen and text[index+matched] == s[matched]:
+            while matched < slen and index + matched < tlen and text[index + matched] == s[matched]:
                 matched = matched + 1
-            return Value.failure(index+matched, s)
+            return Value.failure(index + matched, s)
     return string_parser
+
 
 def regex(exp, flags=0):
     '''Parser according to a regular expression.'''
     if isinstance(exp, str):
         exp = re.compile(exp, flags)
+
     @Parser
     def regex_parser(text, index):
         match = exp.match(text, index)
