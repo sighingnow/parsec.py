@@ -51,7 +51,7 @@ Usage and Contributor Guide
 
 This project is open-source under `The MIT License <http://mit-license.org>`_ and you may use, distribute and
 modify this code with out limitation. The source code can be found at 
-`the site hosted on github <https://github.com/sighingnow/parserc.py>`_.
+`the site hosted on github <https://github.com/sighingnow/parsec.py>`_.
 
 * You can install this library using `pip <https://pypi.python.org/pypi/pip>`_ with the following command:
 

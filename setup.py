@@ -10,7 +10,7 @@ setup(
     long_description = 'A univeral Python parser combinator library inspirted by Parsec library of Haskell.',
     author = 'He Tao',
     author_email = 'sighingnow@gmail.com',
-    url = 'https://github.com/sighignow/parsec.py',
+    url = 'https://github.com/sighingnow/parsec.py',
     license = 'MIT',
     classifiers=[
         'Development Status :: 3 - Alpha',
