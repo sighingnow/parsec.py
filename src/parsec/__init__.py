@@ -20,7 +20,7 @@ class ParseError(RuntimeError):
     '''Parser error.'''
 
     def __init__(self, expected, text, index):
-        super().__init__()
+        super(ParseError, self).__init__() # compatible with Python 2.
         self.expected = expected
         self.text = text
         self.index = index

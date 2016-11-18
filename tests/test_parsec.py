@@ -1,16 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from __future__ import generators
+
 '''
 Test the basic functions of parsec.py.
 '''
 
 __author__ = 'He Tao, sighingnow@gmail.com'
 
-from parsec import *
-
 import random
 import unittest
+
+from parsec import *
 
 class ParsecTest(unittest.TestCase):
     '''Test the implementation of Text.Parsec. (The final test for all apis)'''
@@ -49,16 +51,15 @@ class ParsecPrimTest(unittest.TestCase):
     '''Test the implementation of Text.Parsec.Prim.'''
 
     def test_bind(self):
-        piped = None
+        nonlocals = {'piped': None}
 
         def binder(x):
-            nonlocal piped
-            piped = x
+            nonlocals['piped'] = x
             return string('y')
 
         parser = string('x').bind(binder)
         self.assertEqual(parser.parse('xy'), 'y')
-        self.assertEqual(piped, 'x')
+        self.assertEqual(nonlocals['piped'], 'x')
         self.assertRaises(ParseError, parser.parse, 'x')
 
     def test_compose(self):
@@ -261,29 +262,6 @@ class ParsecCharTest(unittest.TestCase):
 
 class ParserGeneratorTest(unittest.TestCase):
     '''Test the implementation of Parser Generator.(generate)'''
-    def test_generate(self):
-        x = y = None
-        @generate
-        def fn():
-            nonlocal x
-            nonlocal y
-            x = yield string('x')
-            y = yield string('y')
-            return string('z')
-        self.assertEqual(fn.parse('xyz'), 'z')
-        self.assertEqual(x, 'x')
-        self.assertEqual(y, 'y')
-
-        x = y = None
-        @generate
-        def fn():
-            nonlocal x, y
-            x = yield digit()
-            y = yield count(digit(), 5)
-        self.assertEqual(fn.parse('123456'), None)
-        self.assertEqual(x, '1')
-        self.assertEqual(y, ['2', '3', '4', '5', '6'])
-
     def test_generate_desc(self):
         description = 'expected description for fn'
 
