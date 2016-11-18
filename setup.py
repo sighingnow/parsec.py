@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name = 'parsec',
-    version = '3.1',
+    version = '3.2',
     description = 'parser combinator.',
     long_description = 'A univeral Python parser combinator library inspirted by Parsec library of Haskell.',
     author = 'He Tao',
@@ -13,7 +13,7 @@ setup(
     url = 'https://github.com/sighingnow/parsec.py',
     license = 'MIT',
     classifiers=[
-        'Development Status :: 3.1 - Release',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         "Topic :: Software Development :: Compilers",
         'Operating System :: MacOS :: MacOS X',
