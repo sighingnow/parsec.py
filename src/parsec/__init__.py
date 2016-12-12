@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 '''
-A univeral Python parser combinator library inspirted by Parsec library of Haskell.
+A universal Python parser combinator library inspired by Parsec library of Haskell.
 '''
 
 __author__ = 'He Tao, sighingnow@gmail.com'
@@ -45,7 +45,7 @@ class ParseError(RuntimeError):
         return 'expected {} at {}'.format(self.expected, self.loc())
 
 ##########################################################################
-# Defination the Value model of parsec.py.
+# Definition the Value model of parsec.py.
 ##########################################################################
 
 
@@ -218,7 +218,7 @@ class Parser(object):
         return self.bind(lambda res: Parser(lambda _, index: Value.success(index, fn(res))))
 
     def result(self, res):
-        '''Return a value according to the param `res` when parse successfully.'''
+        '''Return a value according to the parameter `res` when parse successfully.'''
         return self >> Parser(lambda _, index: Value.success(index, res))
 
     def mark(self):
@@ -328,7 +328,7 @@ def parsecmap(p, fn):
 
 
 def result(p, res):
-    '''Return a value according to the param `res` when parse successfully.'''
+    '''Return a value according to the parameter `res` when parse successfully.'''
     return p.result(res)
 
 
@@ -484,13 +484,13 @@ def sepBy1(p, sep):
 
 
 def endBy(p, sep):
-    '''`endBy(p, sep)` parses zero or more occurrences of `p`, seperated and
+    '''`endBy(p, sep)` parses zero or more occurrences of `p`, separated and
     ended by `sep`. Returns a list of values returned by `p`.'''
     return separated(p, sep, 0, maxt=float('inf'), end=True)
 
 
 def endBy1(p, sep):
-    '''`endBy1(p, sep) parses one or more occurrences of `p`, seperated and
+    '''`endBy1(p, sep) parses one or more occurrences of `p`, separated and
     ended by `sep`. Returns a list of values returned by `p`.'''
     return separated(p, sep, 1, maxt=float('inf'), end=True)
 

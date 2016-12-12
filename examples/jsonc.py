@@ -82,7 +82,7 @@ def object_pair():
 
 @generate
 def json_object():
-    '''Parse json object.'''
+    '''Parse JSON object.'''
     yield lbrace
     pairs = yield sepBy(object_pair, comma)
     yield rbrace

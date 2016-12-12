@@ -19,4 +19,4 @@ parsec.py
 .. image:: https://img.shields.io/github/license/sighingnow/parsec.py.svg
    :target: https://github.com/sighingnow/parsec.py/blob/master/LICENSE
 
-A univeral Python parser combinator library inspirted by Parsec library of Haskell.
+A universal Python parser combinator library inspired by Parsec library of Haskell.
