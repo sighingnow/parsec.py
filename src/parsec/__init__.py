@@ -412,6 +412,21 @@ def count(p, n):
     return times(p, n, n)
 
 
+def optional(p):
+    '''`Make a parser as optional. If success, return the result, otherwise return
+    None silently, without raising any exception.
+    '''
+    @Parser
+    def optional_parser(text, index):
+        res = p(text, index)
+        if res.status:
+            return Value.success(res.index, res.value)
+        else:
+            '''Return None without doing anything.'''
+            return Value.success(res.index, None)
+    return optional_parser
+
+
 def many(p):
     '''Repeat a parser 0 to infinity times. DO AS MUCH MATCH AS IT CAN.
     Return a list of values.'''

@@ -154,6 +154,11 @@ class ParsecCombinatorTest(unittest.TestCase):
         self.assertEqual(parser.parse('xyzwwwww'), ['x', 'y', 'z'])
         self.assertRaises(ParseError, parser.parse, 'xy')
 
+    def test_optional(self):
+        parser = optional(string('xx'))
+        self.assertEqual(parser.parse('xx'), 'xx')
+        self.assertEqual(parser.parse('xy'), None)
+
     def test_many(self):
         parser = many(letter())
         self.assertEqual(parser.parse('x'), ['x'])
