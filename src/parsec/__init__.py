@@ -293,7 +293,7 @@ def joint(*parsers):
             if prev_v:
                 index = prev_v.index
             prev_v = v = p(text, index)
-            if not v:
+            if not v.status:
                 return v
             values.append(v)
         return Value.combinate(values)

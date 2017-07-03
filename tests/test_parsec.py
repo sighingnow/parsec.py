@@ -74,6 +74,17 @@ class ParsecPrimTest(unittest.TestCase):
         self.assertRaises(ParseError, parser.parse, 'y')
         self.assertRaises(ParseError, parser.parse, 'z')
 
+        nonlocals = {'changed': False}
+
+        @generate
+        def fn():
+            nonlocals['changed'] = True
+            yield string('y')
+
+        parser = string('x') + fn
+        self.assertRaises(ParseError, parser.parse, '1')
+        self.assertEqual(nonlocals['changed'], False)
+
     def test_choice(self):
         parser = string('x') | string('y')
         self.assertEqual(parser.parse('x'), 'x')
