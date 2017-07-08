@@ -260,11 +260,11 @@ class Parser(object):
         return self.bind(other)
 
     def __lshift__(self, other):
-        '''Implements the `(<<)` operator, means `ends_with`.'''
+        '''Implements the `(<<)` operator, means `skip`.'''
         return self.skip(other)
 
     def __lt__(self, other):
-        '''Implements the `(<)` operator, means `skip`.'''
+        '''Implements the `(<)` operator, means `ends_with`.'''
         return self.ends_with(other)
 
 
