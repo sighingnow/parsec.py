@@ -42,6 +42,7 @@ def charseq():
         return string('\\') >> (
             string('\\')
             | string('/')
+            | string('"')
             | string('b').result('\b')
             | string('f').result('\f')
             | string('n').result('\n')
