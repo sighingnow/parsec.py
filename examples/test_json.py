@@ -27,6 +27,7 @@ class TestJsonc(unittest.TestCase):
 
     def test_quoted(self):
         self.assertEqual(jsonc.parse('{"a": "b"}'), {"a": "b"})
+        self.assertEqual(jsonc.parse('{"a": "b\\""}'), {"a": "b\""})
 
     def test_array(self):
         result = jsonc.parse('{"a": ["a", ["b", true], "d"]}')
