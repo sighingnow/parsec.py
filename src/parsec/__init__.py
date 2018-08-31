@@ -412,9 +412,10 @@ def count(p, n):
     return times(p, n, n)
 
 
-def optional(p):
+def optional(p, default_value=None):
     '''`Make a parser as optional. If success, return the result, otherwise return
-    None silently, without raising any exception.
+    default_value silently, without raising any exception. If default_value is not
+    provided None is returned instead.
     '''
     @Parser
     def optional_parser(text, index):
@@ -423,7 +424,7 @@ def optional(p):
             return Value.success(res.index, res.value)
         else:
             '''Return None without doing anything.'''
-            return Value.success(res.index, None)
+            return Value.success(res.index, default_value)
     return optional_parser
 
 
