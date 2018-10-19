@@ -216,6 +216,10 @@ class Parser(object):
     def parsecmap(self, fn):
         '''Returns a parser that transforms the produced value of parser with `fn`.'''
         return self.bind(lambda res: Parser(lambda _, index: Value.success(index, fn(res))))
+    
+    def parsecapp(self, other):
+        '''Returns a parser that applies the produced value of this parser to the produced value of `other`.'''
+        return self.bind(lambda f: other.parsecmap(lambda x: f(x)))
 
     def result(self, res):
         '''Return a value according to the parameter `res` when parse successfully.'''
@@ -326,6 +330,9 @@ def parsecmap(p, fn):
     '''Returns a parser that transforms the produced value of parser with `fn`.'''
     return p.parsecmap(fn)
 
+def parsecapp(p, other):
+    '''Returns a parser that applies the produced value of this parser to the produced value of `other`.'''
+    return p.parsecapp(other)
 
 def result(p, res):
     '''Return a value according to the parameter `res` when parse successfully.'''
