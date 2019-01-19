@@ -133,6 +133,8 @@ class Parser(object):
         result value, else raise a ParseError.
         The difference between `parse` and `parse_strict` is that whether entire
         given text must be used.'''
+        # pylint: disable=comparison-with-callable
+        # Here the `<` is not comparison.
         return (self < eof()).parse_partial(text)[0]
 
     def bind(self, fn):
@@ -216,10 +218,11 @@ class Parser(object):
     def parsecmap(self, fn):
         '''Returns a parser that transforms the produced value of parser with `fn`.'''
         return self.bind(lambda res: Parser(lambda _, index: Value.success(index, fn(res))))
-    
+
     def parsecapp(self, other):
         '''Returns a parser that applies the produced value of this parser to the produced value of `other`.'''
-        return self.bind(lambda f: other.parsecmap(lambda x: f(x)))
+        # pylint: disable=unnecessary-lambda
+        return self.bind(lambda res: other.parsecmap(lambda x: res(x)))
 
     def result(self, res):
         '''Return a value according to the parameter `res` when parse successfully.'''
@@ -330,9 +333,13 @@ def parsecmap(p, fn):
     '''Returns a parser that transforms the produced value of parser with `fn`.'''
     return p.parsecmap(fn)
 
+
 def parsecapp(p, other):
-    '''Returns a parser that applies the produced value of this parser to the produced value of `other`.'''
+    '''Returns a parser that applies the produced value of this parser to the produced value of `other`.
+    There should be an operator `(<*>)`, but that is impossible in Python.
+    '''
     return p.parsecapp(other)
+
 
 def result(p, res):
     '''Return a value according to the parameter `res` when parse successfully.'''
@@ -348,9 +355,10 @@ def desc(p, description):
     '''Describe a parser, when it failed, print out the description text.'''
     return p.desc(description)
 
+
 ##########################################################################
 # Parser Generator
-##
+#
 # The most powerful way to construct a parser is to use the generate decorator.
 # the `generate` creates a parser from a generator that should yield parsers.
 # These parsers are applied successively and their results are sent back to the
@@ -383,6 +391,7 @@ def generate(fn):
                 return Value.success(index, endval)
     return generated.desc(fn.__name__)
 
+
 ##########################################################################
 # Text.Parsec.Combinator
 ##########################################################################
@@ -414,7 +423,7 @@ def times(p, mint, maxt=None):
 
 
 def count(p, n):
-    '''`count n p` parses n occurrences of p. If n is smaller or equal to zero,
+    '''`count p n` parses n occurrences of p. If n is smaller or equal to zero,
     the parser equals to return []. Returns a list of n values returned by p.'''
     return times(p, n, n)
 
@@ -430,7 +439,7 @@ def optional(p, default_value=None):
         if res.status:
             return Value.success(res.index, res.value)
         else:
-            '''Return None without doing anything.'''
+            # Return the maybe existing default value without doing anything.
             return Value.success(res.index, default_value)
     return optional_parser
 
@@ -529,6 +538,7 @@ def sepEndBy1(p, sep):
     '''`sepEndBy1(p, sep)` parses one or more occurrences of `p`, separated and
     optionally ended by `sep`. Returns a list of values returned by `p`.'''
     return separated(p, sep, 1, maxt=float('inf'))
+
 
 ##########################################################################
 # Text.Parsec.Char

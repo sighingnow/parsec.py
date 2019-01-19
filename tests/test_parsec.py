@@ -113,10 +113,18 @@ class ParsecPrimTest(unittest.TestCase):
     def test_parsecmap(self):
 
         def mapfn(p):
-            return p+p
+            return p + p
 
         parser = string('x').parsecmap(mapfn)
         self.assertEqual(parser.parse('x'), 'xx')
+
+    def test_parsecapp(self):
+
+        def genfn(p):
+            return lambda c: 'fn:' + p + c + c
+
+        parser = string('x').parsecmap(genfn).parsecapp(string('y'))
+        self.assertEqual(parser.parse('xy'), 'fn:xyy')
 
     def test_desc(self):
         parser = string('x')
@@ -169,6 +177,11 @@ class ParsecCombinatorTest(unittest.TestCase):
         parser = optional(string('xx'))
         self.assertEqual(parser.parse('xx'), 'xx')
         self.assertEqual(parser.parse('xy'), None)
+
+    def test_optional_default(self):
+        parser = optional(string('xx'), 'k')
+        self.assertEqual(parser.parse('xx'), 'xx')
+        self.assertEqual(parser.parse('xy'), 'k')
 
     def test_many(self):
         parser = many(letter())
