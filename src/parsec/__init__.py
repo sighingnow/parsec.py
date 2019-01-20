@@ -418,6 +418,20 @@ def times(p, mint, maxt=None):
                     return res  # failed, throw exception.
             if cnt >= maxt:  # finish.
                 break
+            # If we don't have any remaining text to start next loop, we need break.
+            #
+            # We cannot put the `index < len(text)` in where because some parser can
+            # success even when we have no any text. We also need to detect if the
+            # parser consume no text.
+            #
+            # See: #28
+            if index >= len(text):
+                if cnt >= mint:
+                    break  # we already have decent result to return
+                else:
+                    r = p(text, index)
+                    if index != r.index:  # report error when the parser cannot success with no text
+                        return Value.failure(index, "already meets the end, no enough text")
         return values
     return times_parser
 

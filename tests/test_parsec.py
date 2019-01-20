@@ -190,6 +190,16 @@ class ParsecCombinatorTest(unittest.TestCase):
         self.assertEqual(parser.parse(''), [])
         self.assertEqual(parser.parse('1'), [])
 
+    # from #28
+    def test_many_many(self):
+        parser = many(many(space()))
+        self.assertEqual(parser.parse('    '), [[' ', ' ', ' ', ' ']])
+
+        parser = times(spaces(), 4, 10)
+        self.assertEqual(parser.parse(''), [[], [], [], []])
+        self.assertEqual(parser.parse(' '), [[' '], [], [], []])
+        self.assertEqual(parser.parse('  '), [[' ', ' '], [], [], []])
+
     def test_many1(self):
         parser = many1(letter())
         self.assertEqual(parser.parse('x'), ['x'])
