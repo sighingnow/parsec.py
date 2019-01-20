@@ -326,5 +326,27 @@ class ParserGeneratorTest(unittest.TestCase):
         # should not finish executing xy()
         self.assertEqual(parser.parse('z'), 'z')
 
+    def test_generate_raise(self):
+
+        # `return` with argument inside generator is not supported in Python 2.
+        # Instead, we can raise a `StopIteration` directly with the intended
+        # result in generator for Python 2.
+        #
+        # Before Python 3.3, the `StopIteration` didn't have the `value` attribute,
+        # we need to assign the attribute manually.
+        #
+        # See #15.
+
+        @generate
+        def xy():
+            yield string('x')
+            yield string('y')
+            r = StopIteration('success')
+            r.value = 'success'  # for pre-3.3 Python
+            raise r
+
+        parser = xy
+        self.assertEqual(parser.parse('xy'), 'success')
+
 if __name__ == '__main__':
     unittest.main()

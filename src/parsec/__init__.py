@@ -364,6 +364,11 @@ def desc(p, description):
 # These parsers are applied successively and their results are sent back to the
 # generator using `.send()` protocol. The generator should return the result or
 # another parser, which is equivalent to applying it and returning its result.
+#
+# Note that `return` with arguments inside generator is not supported in Python 2.
+# Instead, we can raise a `StopIteration` to return the result in Python 2.
+#
+# See #15 and `test_generate_raise` in tests/test_parsec.py
 ##########################################################################
 
 
