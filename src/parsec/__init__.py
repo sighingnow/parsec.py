@@ -394,6 +394,13 @@ def generate(fn):
                 return endval(text, index)
             else:
                 return Value.success(index, endval)
+        except RuntimeError as error:
+            stop = error.__cause__
+            endval = stop.value
+            if isinstance(endval, Parser):
+                return endval(text, index)
+            else:
+                return Value.success(index, endval)
     return generated.desc(fn.__name__)
 
 
