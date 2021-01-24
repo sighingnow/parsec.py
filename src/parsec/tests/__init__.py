@@ -18,7 +18,7 @@ def additional_tests():
     additional_names = []
     if sys.version_info[0] >= 3 and sys.version_info[1] >= 3:
         additional_names.append('examples')
-        from tests.python_3_only.test_generator import ParserGeneratorWithReturnTest
+        from parsec.tests.python_3_only.test_generator import ParserGeneratorWithReturnTest
         suite.addTest(loader.loadTestsFromTestCase(ParserGeneratorWithReturnTest))
     for name in additional_names:
         suite.addTests(loader.discover(name))

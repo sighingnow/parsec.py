@@ -37,5 +37,5 @@ setup(
     package_dir = {'': 'src'},
     packages = find_packages('src'),
 
-    test_suite = 'tests',
+    test_suite = 'parsec.tests',
 )
