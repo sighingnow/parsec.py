@@ -40,4 +40,10 @@ setup(
     packages = find_packages('src'),
 
     test_suite = 'parsec.tests',
+
+    project_urls={
+        'Documentation': 'https://pythonhosted.org/parsec/',
+        'Source': 'https://github.com/sighingnow/parsec.py',
+        'Tracker': 'https://github.com/sighingnow/parsec.py/issues',
+    },
 )
