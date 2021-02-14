@@ -486,7 +486,7 @@ def separated(p, sep, mint, maxt=None, end=None):
     '''Repeat a parser `p` separated by `s` between `mint` and `maxt` times.
     When `end` is None, a trailing separator is optional.
     When `end` is True, a trailing separator is required.
-    When `end` is False, a trailing separator is not allowed.
+    When `end` is False, a trailing separator will not be parsed.
     MATCHES AS MUCH AS POSSIBLE.
     Return list of values returned by `p`.'''
     maxt = maxt if maxt else mint
@@ -494,37 +494,32 @@ def separated(p, sep, mint, maxt=None, end=None):
     @Parser
     def sep_parser(text, index):
         cnt, values, res = 0, Value.success(index, []), None
+        sep_values = values
         while cnt < maxt:
-            if end in [False, None] and cnt > 0:
-                res = sep(text, index)
-                if res.status:  # `sep` found, consume it (advance index)
-                    index, values = res.index, Value.success(
-                        res.index, values.value)
-                elif cnt < mint:
-                    return res  # error: need more elemnts, but no `sep` found.
-                else:
-                    break
-
             res = p(text, index)
             if res.status:
-                values = values.aggregate(
+                values = sep_values.aggregate(
                     Value.success(res.index, [res.value]))
                 index, cnt = res.index, cnt + 1
-            elif cnt >= mint:
-                break
-            else:
+            elif cnt < mint:
                 return res  # error: need more elements, but no `p` found.
-
-            if end is True:
-                res = sep(text, index)
-                if res.status:
-                    index, values = res.index, Value.success(
-                        res.index, values.value)
-                else:
-                    return res  # error: trailing `sep` not found
-
-            if cnt >= maxt:
+            else:
+                if end in [True, None]:
+                    # consume previously found trailing separator (if any)
+                    values = sep_values
                 break
+
+            res = sep(text, index)
+            if res.status:  # `sep` found, consume it (advance index)
+                index, sep_values = res.index, Value.success(
+                    res.index, values.value)
+            elif cnt < mint:
+                return res  # error: need more elements, but no `sep` found.
+            elif end is True:
+                return res  # error: trailing separator required
+            else:
+                break
+
         return values
     return sep_parser
 
