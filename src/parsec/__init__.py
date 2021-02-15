@@ -466,7 +466,7 @@ def optional(p, default_value=None):
             return Value.success(res.index, res.value)
         else:
             # Return the maybe existing default value without doing anything.
-            return Value.success(res.index, default_value)
+            return Value.success(index, default_value)
     return optional_parser
 
 
