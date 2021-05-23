@@ -665,3 +665,48 @@ def regex(exp, flags=0):
         else:
             return Value.failure(index, exp.pattern)
     return regex_parser
+
+##########################################################################
+# Useful utility parsers
+##########################################################################
+
+
+def fail_with(message):
+  return Parser(lambda _, index: Value.failure(index, message))
+
+
+def exclude(p: Parser, excl: Parser):
+  '''Fails parser p if parser excl matches'''
+  @Parser
+  def exclude_parser(text, index):
+    res = excl(text, index)
+    if res.status:
+      return Value.failure(index, 'something other than %s' %res.value)
+    else:
+      return p(text, index)
+  return exclude_parser
+
+
+def lookahead(p: Parser):
+  '''Parses without consuming'''
+  @Parser
+  def lookahead_parser(text, index):
+    res = p(text, index)
+    if res.status:
+      return Value.success(index, res.value)
+    else:
+      return Value.failure(index, res.expected)
+  return lookahead_parser
+
+
+def unit(p: Parser):
+  '''Converts a parser into a single unit
+  Only consumes input if the parser succeeds'''
+  @Parser
+  def unit_parser(text, index):
+    res = p(text, index)
+    if res.status:
+      return Value.success(res.index, res.value)
+    else:
+      return Value.failure(index, res.expected)
+  return unit_parser
