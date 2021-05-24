@@ -111,7 +111,7 @@ class Parser(object):
         return self.fn(text, index)
 
     def parse(self, text):
-        '''Parser a given string `text`.'''
+        '''Parses a given string `text`.'''
         return self.parse_partial(text)[0]
 
     def parse_partial(self, text):
@@ -567,7 +567,7 @@ def sepEndBy1(p, sep):
 
 
 def one_of(s):
-    '''Parser a char from specified string.'''
+    '''Parses a char from specified string.'''
     @Parser
     def one_of_parser(text, index=0):
         if index < len(text) and text[index] in s:
@@ -578,7 +578,7 @@ def one_of(s):
 
 
 def none_of(s):
-    '''Parser a char NOT from specified string.'''
+    '''Parses a char NOT from specified string.'''
     @Parser
     def none_of_parser(text, index=0):
         if index < len(text) and text[index] not in s:
@@ -589,7 +589,7 @@ def none_of(s):
 
 
 def space():
-    '''Parser a whitespace character.'''
+    '''Parses a whitespace character.'''
     @Parser
     def space_parser(text, index=0):
         if index < len(text) and text[index].isspace():
@@ -600,7 +600,7 @@ def space():
 
 
 def spaces():
-    '''Parser zero or more whitespace characters.'''
+    '''Parses zero or more whitespace characters.'''
     return many(space())
 
 
@@ -616,7 +616,7 @@ def letter():
 
 
 def digit():
-    '''Parse a digit character.'''
+    '''Parse a digit.'''
     @Parser
     def digit_parser(text, index=0):
         if index < len(text) and text[index].isdigit():
@@ -627,7 +627,7 @@ def digit():
 
 
 def eof():
-    '''Parser EOF flag of a string.'''
+    '''Parses EOF flag of a string.'''
     @Parser
     def eof_parser(text, index=0):
         if index >= len(text):
@@ -638,7 +638,7 @@ def eof():
 
 
 def string(s):
-    '''Parser a string.'''
+    '''Parses a string.'''
     @Parser
     def string_parser(text, index=0):
         slen, tlen = len(s), len(text)
@@ -653,7 +653,7 @@ def string(s):
 
 
 def regex(exp, flags=0):
-    '''Parser according to a regular expression.'''
+    '''Parses according to a regular expression.'''
     if isinstance(exp, str):
         exp = re.compile(exp, flags)
 
@@ -665,3 +665,48 @@ def regex(exp, flags=0):
         else:
             return Value.failure(index, exp.pattern)
     return regex_parser
+
+##########################################################################
+# Useful utility parsers
+##########################################################################
+
+
+def fail_with(message):
+  return Parser(lambda _, index: Value.failure(index, message))
+
+
+def exclude(p: Parser, excl: Parser):
+  '''Fails parser p if parser excl matches'''
+  @Parser
+  def exclude_parser(text, index):
+    res = excl(text, index)
+    if res.status:
+      return Value.failure(index, 'something other than %s' %res.value)
+    else:
+      return p(text, index)
+  return exclude_parser
+
+
+def lookahead(p: Parser):
+  '''Parses without consuming'''
+  @Parser
+  def lookahead_parser(text, index):
+    res = p(text, index)
+    if res.status:
+      return Value.success(index, res.value)
+    else:
+      return Value.failure(index, res.expected)
+  return lookahead_parser
+
+
+def unit(p: Parser):
+  '''Converts a parser into a single unit
+  Only consumes input if the parser succeeds'''
+  @Parser
+  def unit_parser(text, index):
+    res = p(text, index)
+    if res.status:
+      return Value.success(res.index, res.value)
+    else:
+      return Value.failure(index, res.expected)
+  return unit_parser
