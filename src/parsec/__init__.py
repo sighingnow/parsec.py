@@ -566,6 +566,17 @@ def sepEndBy1(p, sep):
 ##########################################################################
 
 
+def any():
+    '''Parses a arbitrary character.'''
+    @Parser
+    def any_parser(text, index=0):
+        if index < len(text):
+            return Value.success(index + 1, text[index])
+        else:
+            return Value.failure(index, 'a random char')
+    return any_parser
+
+
 def one_of(s):
     '''Parses a char from specified string.'''
     @Parser
