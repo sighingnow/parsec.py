@@ -41,7 +41,7 @@ def addition_reducer(x,y):
     elif op == '-':
         return x - val
     else:
-        raise ValueError(f'unexpected op: {op}')
+        raise ValueError('unexpected op: {}'.format(op))
 
 def mult_reducer(x,y):
     op, val = y
@@ -50,7 +50,7 @@ def mult_reducer(x,y):
     elif op == '/':
         return x / val
     else:
-        raise ValueError(f'unexpected op: {op}')
+        raise ValueError('unexpected op: {}'.format(op))
 
 mult = (primary + sepBy(mult_or_div + primary, whitespace)).parsecmap(lambda t: reduce(mult_reducer, t[1], t[0]))
 expr = (mult + sepBy(add_or_sub + mult, whitespace)).parsecmap(lambda t: reduce(addition_reducer, t[1], t[0]))
