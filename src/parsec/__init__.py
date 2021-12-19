@@ -71,6 +71,12 @@ class Value(namedtuple('Value', 'status index value expected')):
             return other
         return Value(True, other.index, self.value + other.value, None)
 
+    def update_index(self, index=None):
+        if index is None:
+            return self
+        else:
+            return Value(self.status, index, self.value, self.expected)
+
     @staticmethod
     def combinate(values):
         '''aggregate multiple values into tuple'''
@@ -494,31 +500,39 @@ def separated(p, sep, mint, maxt=None, end=None):
     @Parser
     def sep_parser(text, index):
         cnt, values, res = 0, Value.success(index, []), None
-        sep_values = values
+        sep_values, prev_values = values, values
         while cnt < maxt:
             res = p(text, index)
             if res.status:
                 values = sep_values.aggregate(
                     Value.success(res.index, [res.value]))
                 index, cnt = res.index, cnt + 1
-            elif cnt < mint:
-                return res  # error: need more elements, but no `p` found.
             else:
-                if end in [True, None]:
+                if cnt < mint:
+                    return res  # error: need more elements, but no `p` found.
+                else:
                     # consume previously found trailing separator (if any)
                     values = sep_values
                 break
 
+            # consume the sep
             res = sep(text, index)
             if res.status:  # `sep` found, consume it (advance index)
                 index, sep_values = res.index, Value.success(
                     res.index, values.value)
-            elif cnt < mint:
-                return res  # error: need more elements, but no `sep` found.
-            elif end is True:
-                return res  # error: trailing separator required
+                if end in [True, None]:
+                    values = values.update_index(index)
             else:
+                if cnt < mint or cnt == mint and end is True:
+                    return res  # error: need more elements, but no `sep` found.
+                else:
+                    if end is True:
+                        # step back
+                        values = prev_values
                 break
+
+            # record the prev values
+            prev_values = values
 
         return values
     return sep_parser

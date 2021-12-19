@@ -225,6 +225,28 @@ class ParsecCombinatorTest(unittest.TestCase):
         self.assertEqual(parser.parse('x,x,x,x,x') , [])
         self.assertEqual(parser.parse('x,x,x,x,x,'), [])
 
+        # see GH-48
+        parser = separated(string('a'), string(','), 3, 3, end=False)
+        r, rest = parser.parse_partial('a,a,a,')
+        self.assertEqual(r, ['a', 'a', 'a'])
+        self.assertEqual(rest, ',')
+
+        parser = separated(string('a'), string(','), 3, 3, end=True)
+        r, rest = parser.parse_partial('a,a,a,')
+        self.assertEqual(r, ['a', 'a', 'a'])
+        self.assertEqual(rest, '')
+
+
+        parser = separated(string('a'), string(','), 3, 3, end=None)
+        r, rest = parser.parse_partial('a,a,a,')
+        self.assertEqual(r, ['a', 'a', 'a'])
+        self.assertEqual(rest, '')
+
+        parser = separated(string('a'), string(','), 3, 6, end=True)
+        r, rest = parser.parse_partial('a,a,a,a.')
+        self.assertEqual(r, ['a', 'a', 'a'])
+        self.assertEqual(rest, 'a.')
+
     def test_sepBy(self):
         parser = sepBy(letter(), string(','))
         self.assertEqual(parser.parse_strict('x')     , ['x'])
@@ -247,20 +269,21 @@ class ParsecCombinatorTest(unittest.TestCase):
 
     def test_endBy(self):
         parser = endBy(letter(), string(','))
-        self.assertRaises(ParseError, parser.parse, ('x'))
-        self.assertRaises(ParseError, parser.parse, ('x,y,z'))
         self.assertEqual(parser.parse_strict('x,')    , ['x'])
         self.assertEqual(parser.parse_strict('x,y,z,'), ['x', 'y', 'z'])
         self.assertEqual(parser.parse       ('')      , [])
         self.assertEqual(parser.parse       ('1')     , [])
         self.assertEqual(parser.parse       ('1,')    , [])
+        self.assertEqual(parser.parse       ('x')     , [])
+        self.assertEqual(parser.parse       ('x,')    , ['x'])
 
     def test_endBy1(self):
         parser = endBy1(letter(), string(','))
         self.assertRaises(ParseError, parser.parse, ('x'))
-        self.assertRaises(ParseError, parser.parse, ('x,y,z'))
+        self.assertRaises(ParseError, parser.parse_strict, ('x,y,z'))
         self.assertEqual(parser.parse_strict('x,')    , ['x'])
         self.assertEqual(parser.parse_strict('x,y,z,'), ['x', 'y', 'z'])
+        self.assertEqual(parser.parse('x,y,z')        , ['x', 'y'])
         self.assertRaises(ParseError, parser.parse, (''))
         self.assertRaises(ParseError, parser.parse, ('1'))
         self.assertRaises(ParseError, parser.parse, ('1,'))
