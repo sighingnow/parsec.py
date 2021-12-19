@@ -317,6 +317,14 @@ class ParsecCombinatorTest(unittest.TestCase):
         self.assertEqual(parser.parse('<'), "<")
         self.assertEqual(parser.parse('<='), "<")
 
+    def test_fix(self):
+        @Parser
+        @fix
+        def bracketed_expr(recur):
+            return (string("(") >> recur << string(")")) | any()
+
+        self.assertEqual(bracketed_expr.parse("((x))"), 'x')
+
 
 class ParsecCharTest(unittest.TestCase):
     '''Test the implementation of Text.Parsec.Char.'''

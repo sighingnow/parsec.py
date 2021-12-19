@@ -757,3 +757,14 @@ def unit(p: Parser):
         else:
             return Value.failure(index, res.expected)
     return unit_parser
+
+
+
+def fix(fn):
+    '''Allow recursive parser using the Y combinator trick.
+
+       Note that this version still yields the stack overflow problem, and will be fixed in later version.
+
+       See also: https://github.com/sighingnow/parsec.py/issues/39.
+    '''
+    return (lambda x: x(x))(lambda y: fn(lambda *args: y(y)(*args)))
