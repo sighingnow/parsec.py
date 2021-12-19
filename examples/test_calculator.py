@@ -59,14 +59,14 @@ class TestAddition(unittest.TestCase):
 
     def test_addition_simple(self):
         for expr_str, expected in test_strings:
-            print(f'parsing: {expr_str}')
+            print('parsing: {}'.format(expr_str))
             self.assertEqual(
                 full_expr.parse(expr_str),
                 expected)
 
     def test_bad_strings(self):
         for bad_expr_str in bad_test_strings:
-            print(f'parsing: {bad_expr_str}')
+            print('parsing: {}'.format(bad_expr_str))
             self.assertRaises(ParseError, full_expr.parse, bad_expr_str)
 
 if __name__ == '__main__':
