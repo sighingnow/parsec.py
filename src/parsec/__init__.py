@@ -42,7 +42,7 @@ class ParseError(RuntimeError):
             return '<out of bounds index {!r}>'.format(self.index)
 
     def __str__(self):
-        return 'expected {} at {}'.format(self.expected, self.loc())
+        return 'expected: {} at {}'.format(self.expected, self.loc())
 
 ##########################################################################
 # Definition the Value model of parsec.py.
@@ -195,7 +195,7 @@ class Parser(object):
         '''(<<) Ends with a specified parser, and at the end parser consumed the
         end flag.'''
         @Parser
-        def ends_with_parser(text, index):
+        def skip_parser(text, index):
             res = self(text, index)
             if not res.status:
                 return res
@@ -204,7 +204,7 @@ class Parser(object):
                 return Value.success(end.index, res.value)
             else:
                 return Value.failure(end.index, 'ends with {}'.format(end.expected))
-        return ends_with_parser
+        return skip_parser
 
     def ends_with(self, other):
         '''(<) Ends with a specified parser, and at the end parser hasn't consumed
@@ -220,6 +220,20 @@ class Parser(object):
             else:
                 return Value.failure(end.index, 'ends with {}'.format(end.expected))
         return ends_with_parser
+
+    def excepts(self, other):
+        '''Fail though matched when the consecutive parser `other` success for the rest text.'''
+        @Parser
+        def excepts_parser(text, index):
+            res = self(text, index)
+            if not res.status:
+                return res
+            lookahead = other(text, res.index)
+            if lookahead.status:
+                return Value.failure(res.index, 'should not be "{}"'.format(lookahead.value))
+            else:
+                return res
+        return excepts_parser
 
     def parsecmap(self, fn):
         '''Returns a parser that transforms the produced value of parser with `fn`.'''
@@ -280,6 +294,9 @@ class Parser(object):
         '''Implements the `(<)` operator, means `ends_with`.'''
         return self.ends_with(other)
 
+    def __truediv__(self, other):
+        return self.excepts(other)
+
 
 def parse(p, text, index=0):
     '''Parse a string and return the result or raise a ParseError.'''
@@ -333,6 +350,11 @@ def ends_with(pa, pb):
     '''Ends with a specified parser, and at the end parser hasn't consumed any input.
     Implements the operator of `(<)`.'''
     return pa.ends_with(pb)
+
+
+def excepts(pa, pb):
+    '''Fail `pa` though matched when the consecutive parser `pb` success for the rest text.'''
+    return pa.excepts(pb)
 
 
 def parsecmap(p, fn):

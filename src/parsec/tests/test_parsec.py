@@ -308,6 +308,16 @@ class ParsecCombinatorTest(unittest.TestCase):
         self.assertRaises(ParseError, parser.parse, ('1'))
         self.assertRaises(ParseError, parser.parse, ('1,'))
 
+    def test_excepts(self):
+        parser = (string('<') / string('=')) ^ string('<=')
+        self.assertEqual(parser.parse('<'), "<")
+        self.assertEqual(parser.parse('<='), "<=")
+
+        parser = string('<') ^ string('<=')
+        self.assertEqual(parser.parse('<'), "<")
+        self.assertEqual(parser.parse('<='), "<")
+
+
 class ParsecCharTest(unittest.TestCase):
     '''Test the implementation of Text.Parsec.Char.'''
 
