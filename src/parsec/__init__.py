@@ -448,6 +448,9 @@ def times(p, mint, maxt=None):
         while cnt < maxt:
             res = p(text, index)
             if res.status:
+                if maxt == float('inf') and res.index == index:
+                    # prevent infinite loop, see GH-43
+                    break
                 values = values.aggregate(
                     Value.success(res.index, [res.value]))
                 index, cnt = res.index, cnt + 1
