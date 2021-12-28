@@ -525,40 +525,37 @@ def separated(p, sep, mint, maxt=None, end=None):
     @Parser
     def sep_parser(text, index):
         cnt, values, res = 0, Value.success(index, []), None
-        sep_values, prev_values = values, values
+        prev_values = values
         while cnt < maxt:
             res = p(text, index)
             if res.status:
-                values = sep_values.aggregate(
+                current_values = values.aggregate(
                     Value.success(res.index, [res.value]))
                 index, cnt = res.index, cnt + 1
             else:
                 if cnt < mint:
                     return res  # error: need more elements, but no `p` found.
                 else:
-                    # consume previously found trailing separator (if any)
-                    values = sep_values
-                break
+                    return values
 
             # consume the sep
             res = sep(text, index)
             if res.status:  # `sep` found, consume it (advance index)
-                index, sep_values = res.index, Value.success(
-                    res.index, values.value)
+                index = res.index
                 if end in [True, None]:
-                    values = values.update_index(index)
+                    current_values = current_values.update_index(res.index)
             else:
-                if cnt < mint or cnt == mint and end is True:
+                if cnt < mint or (cnt == mint and end is True):
                     return res  # error: need more elements, but no `sep` found.
                 else:
                     if end is True:
                         # step back
-                        values = prev_values
-                break
+                        return values
+                    else:
+                        return current_values
 
             # record the prev values
-            prev_values = values
-
+            prev_values, values = values, current_values
         return values
     return sep_parser
 

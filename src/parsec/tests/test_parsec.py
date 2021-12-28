@@ -236,7 +236,6 @@ class ParsecCombinatorTest(unittest.TestCase):
         self.assertEqual(r, ['a', 'a', 'a'])
         self.assertEqual(rest, '')
 
-
         parser = separated(string('a'), string(','), 3, 3, end=None)
         r, rest = parser.parse_partial('a,a,a,')
         self.assertEqual(r, ['a', 'a', 'a'])
@@ -246,6 +245,12 @@ class ParsecCombinatorTest(unittest.TestCase):
         r, rest = parser.parse_partial('a,a,a,a.')
         self.assertEqual(r, ['a', 'a', 'a'])
         self.assertEqual(rest, 'a.')
+
+        # see GH-49
+        parser = separated(string('a'), string(','), 3, 6, end=False)
+        r, rest = parser.parse_partial('a,a,a,')
+        self.assertEqual(r, ['a', 'a', 'a'])
+        self.assertEqual(rest, ',')
 
     def test_sepBy(self):
         parser = sepBy(letter(), string(','))
