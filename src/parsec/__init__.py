@@ -8,6 +8,7 @@ A universal Python parser combinator library inspired by Parsec library of Haske
 __author__ = 'He Tao, sighingnow@gmail.com'
 
 import re
+import warnings
 from functools import wraps
 from collections import namedtuple
 
@@ -282,8 +283,19 @@ class Parser(object):
         '''Implements the `(>>)` operator, means `compose`.'''
         return self.compose(other)
 
+    def __rshift__(self, other):
+        '''Implements the `(>)` operator, means `compose`.'''
+        return self.compose(other)
+
     def __irshift__(self, other):
         '''Implements the `(>>=)` operator, means `bind`.'''
+        warnings.warn('Call to deprecated operator (`>>=`) as it is an in-place '
+                      'operator and offten causing misleading, using (`>=`) for '
+                      'bind() instead.', category=DeprecationWarning)
+        return self.bind(other)
+
+    def __ge__(self, other):
+        '''Implements the `(>=)` operator, means `bind`.'''
         return self.bind(other)
 
     def __lshift__(self, other):
@@ -304,12 +316,12 @@ def parse(p, text, index=0):
 
 
 def bind(p, fn):
-    '''Bind two parsers, implements the operator of `(>>=)`.'''
+    '''Bind two parsers, implements the operator of `(>=)`.'''
     return p.bind(fn)
 
 
 def compose(pa, pb):
-    '''Compose two parsers, implements the operator of `(>>)`.'''
+    '''Compose two parsers, implements the operator of `(>>)`, or `(>)`.'''
     return pa.compose(pb)
 
 
