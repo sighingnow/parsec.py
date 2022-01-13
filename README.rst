@@ -25,3 +25,4 @@ We have noticed `parsec` helps users in many real world cases as follows:
 
 + `Simply using parsec in python <https://stackoverflow.com/questions/57368870/simply-using-parsec-in-python>`_
 + `Parsing date from text with Python's parsec.py library <https://stackoverflow.com/questions/67841197/parsing-text-with-pythons-parsec-py-library>`_
++ `Parsing with the .bind() operator <https://stackoverflow.com/questions/70628660/why-am-i-getting-a-syntax-error-when-using-the-operator>`_
