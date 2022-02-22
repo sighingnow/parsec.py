@@ -741,7 +741,7 @@ def exclude(p: Parser, exclude: Parser):
     def exclude_parser(text, index):
         res = exclude(text, index)
         if res.status:
-            return Value.failure(index, f"something other than {res.value}")
+            return Value.failure(index, 'something other than {}'.format(res.value))
         else:
             return p(text, index)
     return exclude_parser
