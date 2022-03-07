@@ -283,7 +283,7 @@ class Parser(object):
         '''Implements the `(>>)` operator, means `compose`.'''
         return self.compose(other)
 
-    def __rshift__(self, other):
+    def __gt__(self, other):
         '''Implements the `(>)` operator, means `compose`.'''
         return self.compose(other)
 
@@ -307,6 +307,7 @@ class Parser(object):
         return self.ends_with(other)
 
     def __truediv__(self, other):
+        '''Implements the `(/)` operator, means `excepts`.'''
         return self.excepts(other)
 
 
