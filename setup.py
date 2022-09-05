@@ -32,11 +32,15 @@ setup(
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
         'License :: OSI Approved :: MIT License',
     ],
     platforms = 'any',
     keywords = 'monad parser combinator',
 
+    install_requires = [
+        'enum34; python_version < "3.5"',
+    ],
     package_dir = {'': 'src'},
     packages = find_packages('src'),
     package_data = {'': ('py.typed', '*.pyi')},
