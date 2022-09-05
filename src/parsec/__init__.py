@@ -18,7 +18,7 @@ from collections import namedtuple
 
 
 class ParseError(RuntimeError):
-    '''Parser error.'''
+    '''Type for parse error.'''
 
     def __init__(self, expected, text, index):
         super(ParseError, self).__init__() # compatible with Python 2.
@@ -31,7 +31,10 @@ class ParseError(RuntimeError):
         '''Location of `index` in source code `text`.'''
         if index > len(text):
             raise ValueError('Invalid index.')
-        line, last_ln = text.count('\n', 0, index), text.rfind('\n', 0, index)
+        if isinstance(text, str):
+            line, last_ln = text.count('\n', 0, index), text.rfind('\n', 0, index)
+        else:
+            line, last_ln = 0, index
         col = index - (last_ln + 1)
         return (line, col)
 
@@ -43,7 +46,8 @@ class ParseError(RuntimeError):
             return '<out of bounds index {!r}>'.format(self.index)
 
     def __str__(self):
-        return 'expected: {} at {}'.format(self.expected, self.loc())
+        return 'expected: {!r} at {}'.format(self.expected, self.loc())
+
 
 ##########################################################################
 # Definition the Value model of parsec.py.
@@ -80,7 +84,7 @@ class Value(namedtuple('Value', 'status index value expected')):
 
     @staticmethod
     def combinate(values):
-        '''aggregate multiple values into tuple'''
+        '''Aggregate multiple values into tuple'''
         prev_v = None
         for v in values:
             if prev_v:
@@ -105,6 +109,7 @@ class Parser(object):
     A Parser is an object that wraps a function to do the parsing work.
     Arguments of the function should be a string to be parsed and the index on
     which to begin parsing.
+
     The function should return either Value.success(next_index, value) if
     parsing successfully, or Value.failure(index, expected) on the failure.
     '''
@@ -123,11 +128,10 @@ class Parser(object):
 
     def parse_partial(self, text):
         '''Parse the longest possible prefix of a given string.
+
         Return a tuple of the result value and the rest of the string.
+
         If failed, raise a ParseError. '''
-        if not isinstance(text, str):
-            raise TypeError(
-                'Can only parsing string but got {!r}'.format(text))
         res = self(text, 0)
         if res.status:
             return (res.value, text[res.index:])
@@ -136,8 +140,10 @@ class Parser(object):
 
     def parse_strict(self, text):
         '''Parse the longest possible prefix of the entire given string.
+
         If the parser worked successfully and NONE text was rested, return the
         result value, else raise a ParseError.
+
         The difference between `parse` and `parse_strict` is that whether entire
         given text must be used.'''
         # pylint: disable=comparison-with-callable
@@ -171,8 +177,10 @@ class Parser(object):
 
     def choice(self, other):
         '''(|) This combinator implements choice. The parser p | q first applies p.
-        If it succeeds, the value of p is returned.
-        If p fails **without consuming any input**, parser q is tried.
+
+        - If it succeeds, the value of p is returned.
+        - If p fails **without consuming any input**, parser q is tried.
+
         NOTICE: without backtrack.'''
         @Parser
         def choice_parser(text, index):
@@ -376,7 +384,9 @@ def parsecmap(p, fn):
 
 
 def parsecapp(p, other):
-    '''Returns a parser that applies the produced value of this parser to the produced value of `other`.
+    '''Returns a parser that applies the produced value of this parser to the produced
+    value of `other`.
+
     There should be an operator `(<*>)`, but that is impossible in Python.
     '''
     return p.parsecapp(other)
@@ -528,10 +538,13 @@ def many1(p):
 
 def separated(p, sep, mint, maxt=None, end=None):
     '''Repeat a parser `p` separated by `s` between `mint` and `maxt` times.
-    When `end` is None, a trailing separator is optional.
-    When `end` is True, a trailing separator is required.
-    When `end` is False, a trailing separator will not be parsed.
+
+    - When `end` is None, a trailing separator is optional.
+    - When `end` is True, a trailing separator is required.
+    - When `end` is False, a trailing separator will not be parsed.
+
     MATCHES AS MUCH AS POSSIBLE.
+
     Return list of values returned by `p`.'''
     maxt = maxt if maxt else mint
 
@@ -702,7 +715,7 @@ def string(s):
     @Parser
     def string_parser(text, index=0):
         slen, tlen = len(s), len(text)
-        if text[index:index + slen] == s:
+        if ''.join(text[index:index + slen]) == s:
             return Value.success(index + slen, s)
         else:
             matched = 0
@@ -719,6 +732,10 @@ def regex(exp, flags=0):
 
     @Parser
     def regex_parser(text, index):
+        if not isinstance(text, str):
+            return Value.failure(index, "`regex` combinator only accepts string as input, "
+                                 "but got type {!r}, value is {!r}".format(type(text), text))
+
         match = exp.match(text, index)
         if match:
             return Value.success(match.end(), match.group(0))
@@ -776,7 +793,8 @@ def unit(p: Parser):
 def fix(fn):
     '''Allow recursive parser using the Y combinator trick.
 
-       Note that this version still yields the stack overflow problem, and will be fixed in later version.
+       Note that this version still yields the stack overflow problem, and will be fixed
+       in later version.
 
        See also: https://github.com/sighingnow/parsec.py/issues/39.
     '''
