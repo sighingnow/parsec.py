@@ -467,15 +467,14 @@ def times(p, mint, maxt=None):
 
     @Parser
     def times_parser(text, index):
-        cnt, values, res = 0, Value.success(index, []), None
+        cnt, values, res = 0, [], None
         while cnt < maxt:
             res = p(text, index)
             if res.status:
                 if maxt == float('inf') and res.index == index:
                     # prevent infinite loop, see GH-43
                     break
-                values = values.aggregate(
-                    Value.success(res.index, [res.value]))
+                values.append(res.value)
                 index, cnt = res.index, cnt + 1
             else:
                 if cnt >= mint:
@@ -498,7 +497,7 @@ def times(p, mint, maxt=None):
                     r = p(text, index)
                     if index != r.index:  # report error when the parser cannot success with no text
                         return Value.failure(index, "already meets the end, no enough text")
-        return values
+        return Value.success(index, values)
     return times_parser
 
 
@@ -550,39 +549,41 @@ def separated(p, sep, mint, maxt=None, end=None):
 
     @Parser
     def sep_parser(text, index):
-        cnt, values, res = 0, Value.success(index, []), None
-        prev_values = values
+        cnt, values_index, values, res = 0, index, [], None
         while cnt < maxt:
             res = p(text, index)
             if res.status:
-                current_values = values.aggregate(
-                    Value.success(res.index, [res.value]))
+                current_value_index = res.index
+                current_value = res.value
                 index, cnt = res.index, cnt + 1
             else:
                 if cnt < mint:
                     return res  # error: need more elements, but no `p` found.
                 else:
-                    return values
+                    return Value.success(values_index, values)
 
             # consume the sep
             res = sep(text, index)
             if res.status:  # `sep` found, consume it (advance index)
                 index = res.index
                 if end in [True, None]:
-                    current_values = current_values.update_index(res.index)
+                    current_value_index = res.index
             else:
                 if cnt < mint or (cnt == mint and end is True):
                     return res  # error: need more elements, but no `sep` found.
                 else:
                     if end is True:
                         # step back
-                        return values
+                        return Value.success(values_index, values)
                     else:
-                        return current_values
+                        values_index = current_value_index
+                        values.append(current_value)
+                        return Value.success(values_index, values)
 
-            # record the prev values
-            prev_values, values = values, current_values
-        return values
+            # record the new value
+            values_index = current_value_index
+            values.append(current_value)
+        return Value.success(values_index, values)
     return sep_parser
 
 
