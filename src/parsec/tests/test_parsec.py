@@ -108,6 +108,9 @@ class ParsecPrimTest(unittest.TestCase):
         self.assertEqual(nonlocals['piped'], 'x')
         self.assertRaises(ParseError, parser.parse, 'x')
 
+        with self.assertRaises(TypeError):
+            parser >= (lambda x, y, z: any())
+
     def test_compose(self):
         parser = string('x') >> string('y')
         self.assertEqual(parser.parse('xy'), 'y')

@@ -7,6 +7,11 @@ A universal Python parser combinator library inspired by Parsec library of Haske
 
 __author__ = 'He Tao, sighingnow@gmail.com'
 
+try:
+    from inspect import getfullargspec as getargspec
+except ImportError:
+    from inspect import getargspec as getargspec
+
 import operator
 import re
 import warnings
@@ -155,6 +160,10 @@ class Parser(object):
         parser is successful, passes the result to fn, and continues with the
         parser returned from fn.
         '''
+        argspec = getargspec(fn)
+        if not 1 <= len(argspec.args) <= 2:
+            raise TypeError("can only bind on a function with one or two arguments, fn: {}".format(argspec))
+
         @Parser
         def bind_parser(text, index):
             res = self(text, index)
