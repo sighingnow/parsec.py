@@ -370,6 +370,23 @@ def try_choices(*choices):
     '''Choose one from the choices'''
     return reduce(try_choice, choices)
 
+def try_choices_longest(*choices):
+    if not choices:
+        raise TypeError("choices cannot be empty")
+
+    if not all(isinstance(choice, Parser) for choice in choices):
+        raise TypeError("choices can only be Parsers")
+
+    @Parser
+    def longest(text, index):
+        results = list(map(lambda choice: choice(text, index), choices))
+        if all(not result.status for result in results):
+            return Value.failure(index, 'does not match with any choices {}'.format(choices))
+
+        successful_results = list(filter(lambda result: result.status, results))
+        return max(successful_results, key=lambda result: result.index)
+    return longest
+
 def skip(pa, pb):
     '''Ends with a specified parser, and at the end parser consumed the end flag.
     Implements the operator of `(<<)`.'''

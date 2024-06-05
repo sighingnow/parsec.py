@@ -168,6 +168,20 @@ class ParsecPrimTest(unittest.TestCase):
         self.assertEqual(parser.parse('yz'), 'yz')
         self.assertEqual(parser.parse('y'), 'y')
 
+    def test_try_choices_longest(self):
+        with self.assertRaisesRegex(TypeError, "choices cannot be empty"):
+            try_choices_longest()
+
+        with self.assertRaisesRegex(TypeError, "choices can only be Parsers"):
+            try_choices_longest(None)
+
+        parser = try_choices_longest(string("x"), string("xyz"))
+        self.assertEqual(parser.parse("x"), "x")
+        self.assertEqual(parser.parse("xyz"), "xyz")
+
+        with self.assertRaisesRegex(ParseError, r"does not match with any choices .*"):
+            parser.parse("y")
+
     def test_ends_with(self):
         parser = string('x') < string('y')
         self.assertEqual(parser.parse('xy'), 'x')
