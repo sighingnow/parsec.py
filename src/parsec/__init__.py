@@ -14,6 +14,7 @@ except ImportError:
 
 import operator
 import re
+import inspect
 import warnings
 from functools import reduce, wraps
 from collections import namedtuple
@@ -22,6 +23,11 @@ from collections import namedtuple
 # Text.Parsec.Error
 ##########################################################################
 
+def _arguments(callable):
+    if inspect.isbuiltin(callable):
+        # NOTE: we cannot perform introspection on builtins
+        return 1
+    return len(getargspec(callable).args)
 
 class ParseError(RuntimeError):
     '''Type for parse error.'''
@@ -165,9 +171,9 @@ class Parser(object):
         parser is successful, passes the result to fn, and continues with the
         parser returned from fn.
         '''
-        argspec = getargspec(fn)
-        if not 1 <= len(argspec.args) <= 2:
-            raise TypeError("can only bind on a function with one or two arguments, fn: {}".format(argspec))
+        args_count = _arguments(fn)
+        if not 1 <= args_count <= 2:
+            raise TypeError("can only bind on a function with one or two arguments, fn/{}".format(args_count))
 
         @Parser
         def bind_parser(text, index):
@@ -175,7 +181,7 @@ class Parser(object):
             if not res.status:
                 return res
 
-            return (fn(res.value, index) if len(argspec.args) == 2 else fn(res.value))(text, res.index)
+            return (fn(res.value, index) if args_count == 2 else fn(res.value))(text, res.index)
         return bind_parser
 
     def compose(self, other):
@@ -261,14 +267,30 @@ class Parser(object):
                 return res
         return excepts_parser
 
-    def parsecmap(self, fn):
+    def parsecmap(self, fn, star=None):
         '''Returns a parser that transforms the produced value of parser with `fn`.'''
-        return self.bind(lambda res: success_with(fn(res), advance=False))
+        def mapper(res):
+            # unpack tuple
+            result = fn(*res) if star is True or star is None and isinstance(res, tuple) and len(res) == _arguments(fn) else fn(res)
+            return success_with(result, advance=False)
+        return self.bind(mapper)
+
+    def map(self, fn, star=None):
+        '''Functor map on the parsed value with `fn`.
+        Alias to parsecmap
+        '''
+        return self.parsecmap(fn, star=star)
 
     def parsecapp(self, other):
         '''Returns a parser that applies the produced value of this parser to the produced value of `other`.'''
         # pylint: disable=unnecessary-lambda
         return self.bind(lambda res: other.parsecmap(lambda x: res(x)))
+
+    def apply(self, other):
+        '''Apply the function produced by self on the result of other.
+        Alias to parsecapp
+        '''
+        return self.parsecapp(other)
 
     def result(self, res):
         '''Return a value according to the parameter `res` when parse successfully.'''
@@ -847,4 +869,4 @@ decimal = decimal_number
 
 zero_number = string("0") >> (hexadecimal | octal | binary | decimal | success_with(0))
 natural = zero_number | decimal
-integer = sign.parsecapp(natural)
+integer = sign.apply(natural)

@@ -196,20 +196,20 @@ class ParsecPrimTest(unittest.TestCase):
         with self.assertRaises(ParseError):
             parser.parse('y')
 
-    def test_parsecmap(self):
+    def test_map(self):
 
         def mapfn(p):
             return p + p
 
-        parser = string('x').parsecmap(mapfn)
+        parser = string('x').map(mapfn)
         self.assertEqual(parser.parse('x'), 'xx')
 
-    def test_parsecapp(self):
+    def test_apply(self):
 
         def genfn(p):
             return lambda c: 'fn:' + p + c + c
 
-        parser = string('x').parsecmap(genfn).parsecapp(string('y'))
+        parser = string('x').map(genfn).apply(string('y'))
         self.assertEqual(parser.parse('xy'), 'fn:xyy')
 
     def test_desc(self):
