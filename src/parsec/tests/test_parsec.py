@@ -57,6 +57,9 @@ class ValueTest(unittest.TestCase):
 
 class ParsecTest(unittest.TestCase):
     '''Test the implementation of Text.Parsec. (The final test for all apis)'''
+    def test_repr(self):
+        self.assertIsNotNone(repr(any()))
+
     def test_times_with_then(self):
         parser = times(letter(), 3) >> digit()
         self.assertEqual(parser.parse('xyz1'), '1')

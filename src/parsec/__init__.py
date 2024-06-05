@@ -127,6 +127,11 @@ class Parser(object):
         '''call wrapped function.'''
         return self.fn(text, index)
 
+    def __repr__(self):
+        if hasattr(self.fn, "__name__"):
+            return self.fn.__name__
+        return super().__repr__()
+
     def parse(self, text):
         '''Parses a given string `text`.'''
         return self.parse_partial(text)[0]
