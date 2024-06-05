@@ -153,7 +153,7 @@ class ParsecPrimTest(unittest.TestCase):
 
     def test_try_choices(self):
         # cannot try_choices without choices
-        with self.assertRaisesRegex(TypeError, r"reduce\(\) of empty iterable with no initial value"):
+        with self.assertRaisesRegex(TypeError, r"reduce\(\) of empty \w+ with no initial value"):
             try_choices()
 
         parser = try_choices(string('x'))
