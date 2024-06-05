@@ -774,10 +774,10 @@ def newline():
     return string("\n").desc("LF")
 
 def crlf():
-    return (string("\r") >> newline).desc("CRLF")
+    return (string("\r") >> newline()).desc("CRLF")
 
 def end_of_line():
-    return (newline | crlf).desc("EOL")
+    return (newline() | crlf()).desc("EOL")
 
 ##########################################################################
 # Useful utility parsers
