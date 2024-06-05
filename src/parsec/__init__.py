@@ -23,7 +23,7 @@ from collections import namedtuple
 # Text.Parsec.Error
 ##########################################################################
 
-def _arguments(callable):
+def expected_arguments(callable):
     if inspect.isbuiltin(callable):
         # NOTE: we cannot perform introspection on builtins
         return 1
@@ -171,7 +171,7 @@ class Parser(object):
         parser is successful, passes the result to fn, and continues with the
         parser returned from fn.
         '''
-        args_count = _arguments(fn)
+        args_count = expected_arguments(fn)
         if not 1 <= args_count <= 2:
             raise TypeError("can only bind on a function with one or two arguments, fn/{}".format(args_count))
 
@@ -267,15 +267,15 @@ class Parser(object):
                 return res
         return excepts_parser
 
-    def parsecmap(self, fn, star=None):
+    def parsecmap(self, fn, star=False):
         '''Returns a parser that transforms the produced value of parser with `fn`.'''
         def mapper(res):
             # unpack tuple
-            result = fn(*res) if star is True or star is None and isinstance(res, tuple) and len(res) == _arguments(fn) else fn(res)
+            result = fn(*res) if star else fn(res)
             return success_with(result, advance=False)
         return self.bind(mapper)
 
-    def map(self, fn, star=None):
+    def map(self, fn, star=False):
         '''Functor map on the parsed value with `fn`.
         Alias to parsecmap
         '''
