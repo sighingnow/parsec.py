@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name = 'parsec',
-    version = '3.15',
+    version = '3.16',
     description = 'parser combinator.',
     long_description = 'A universal Python parser combinator library inspired by Parsec library of Haskell.',
     author = 'He Tao',
@@ -33,6 +33,7 @@ setup(
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
         'License :: OSI Approved :: MIT License',
     ],
     platforms = 'any',
@@ -40,7 +41,13 @@ setup(
 
     install_requires = [
         'enum34; python_version < "3.5"',
+        'setuptools',
     ],
+    extras_require={
+        'dev': [
+            'coverage',
+        ],
+    },
     package_dir = {'': 'src'},
     packages = find_packages('src'),
     package_data = {'': ('py.typed', '*.pyi')},

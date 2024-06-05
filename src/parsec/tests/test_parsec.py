@@ -14,6 +14,18 @@ import unittest
 
 from parsec import *
 
+class ParseErrorTest(unittest.TestCase):
+    def test_loc_info_should_throw_on_invalid_index(self):
+        self.assertRaises(ValueError, ParseError.loc_info, "", 1)
+
+    def test_loc_info_should_use_default_values_when_text_is_not_str(self):
+        self.assertEqual(ParseError.loc_info([0], 0), (0, -1))
+
+    def test_str(self):
+        self.assertTrue(str(ParseError("foo bar", "test", 0)))
+        # trigger ValueError
+        self.assertTrue(str(ParseError("foo bar", "", 1)))
+
 class ParsecTest(unittest.TestCase):
     '''Test the implementation of Text.Parsec. (The final test for all apis)'''
     def test_times_with_then(self):
@@ -57,7 +69,7 @@ class ParsecPrimTest(unittest.TestCase):
             nonlocals['piped'] = x
             return string('y')
 
-        parser = string('x').bind(binder)
+        parser = string('x') >= binder
         self.assertEqual(parser.parse('xy'), 'y')
         self.assertEqual(nonlocals['piped'], 'x')
         self.assertRaises(ParseError, parser.parse, 'x')
@@ -322,6 +334,15 @@ class ParsecCombinatorTest(unittest.TestCase):
         self.assertEqual(parser.parse('<'), "<")
         self.assertEqual(parser.parse('<='), "<")
 
+    def test_between(self):
+        parser = between(string("("), string(")"), many(none_of(")")))
+        self.assertEqual(parser.parse("()"), [])
+        self.assertEqual(parser.parse("(abc)"), ["a", "b", "c"])
+        self.assertRaises(ParseError, parser.parse, "")
+        self.assertRaises(ParseError, parser.parse, "(")
+        self.assertRaises(ParseError, parser.parse, ")")
+        self.assertRaises(ParseError, parser.parse, ")(")
+
     def test_fix(self):
         @Parser
         @fix
@@ -330,6 +351,10 @@ class ParsecCombinatorTest(unittest.TestCase):
 
         self.assertEqual(bracketed_expr.parse("((x))"), 'x')
 
+    def test_validate(self):
+        parser = any() >= validate(str.isalpha)
+        self.assertEqual(parser.parse("a"), "a")
+        self.assertRaises(ParseError, parser.parse, "1")
 
 class ParsecCharTest(unittest.TestCase):
     '''Test the implementation of Text.Parsec.Char.'''
@@ -344,6 +369,92 @@ class ParsecCharTest(unittest.TestCase):
         self.assertEqual(parser.parse('1'), '1')
         self.assertEqual(parser.parse('4'), '4')
         self.assertRaises(ParseError, parser.parse, 'x')
+        # combinator only accepts string as input
+        self.assertRaises(ParseError, parser.parse, [1])
+
+    def test_one_of(self):
+        parser = one_of('abc')
+        self.assertEqual(parser.parse('a'), 'a')
+        self.assertEqual(parser.parse('b'), 'b')
+        self.assertEqual(parser.parse('c'), 'c')
+        self.assertRaises(ParseError, parser.parse, 'd')
+
+    def test_none_of(self):
+        parser = none_of('abc')
+        self.assertRaises(ParseError, parser.parse, 'a')
+        self.assertRaises(ParseError, parser.parse, 'b')
+        self.assertRaises(ParseError, parser.parse, 'c')
+        self.assertEqual(parser.parse('d'), 'd')
+
+    def test_exclude(self):
+        parser = exclude(string("test"), string("should-be-excluded"))
+        self.assertEqual(parser.parse("test"), "test")
+        self.assertRaises(ParseError, parser.parse, "should-be-excluded")
+
+    def test_lookahead(self):
+        parser = lookahead(string("test")) + string("test")
+        self.assertEqual(parser.parse("test"), ("test", "test"))
+        self.assertRaises(ParseError, parser.parse, "tes")
+
+    def test_unit(self):
+        parser = unit(string("abc")) | one_of("a")
+        self.assertEqual(parser.parse("abc"), "abc")
+        self.assertEqual(parser.parse("a"), "a")
+
+class ParsecNumberTest(unittest.TestCase):
+    '''Test the implementation of Text.Parsec.Number.'''
+
+    def test_decimal(self):
+        parser = decimal
+        self.assertEqual(parser.parse('0'), 0)
+        self.assertEqual(parser.parse('1'), 1)
+        self.assertEqual(parser.parse('10'), 10)
+        self.assertEqual(parser.parse('9999'), 9999)
+
+    def test_binary(self):
+        parser = binary
+        self.assertEqual(parser.parse('b0'), 0b0)
+        self.assertEqual(parser.parse('b1'), 0b1)
+        self.assertEqual(parser.parse('B1'), 0b1)
+        self.assertEqual(parser.parse('b10'), 0b10)
+        self.assertEqual(parser.parse('B10'), 0b10)
+        self.assertEqual(parser.parse('b1111'), 0b1111)
+        self.assertEqual(parser.parse('B1111'), 0b1111)
+
+    def test_octal(self):
+        parser = octal
+        self.assertEqual(parser.parse('o0'), 0o0)
+        self.assertEqual(parser.parse('o1'), 0o1)
+        self.assertEqual(parser.parse('O1'), 0o1)
+        self.assertEqual(parser.parse('o10'), 0o10)
+        self.assertEqual(parser.parse('O10'), 0o10)
+        self.assertEqual(parser.parse('o7777'), 0o7777)
+        self.assertEqual(parser.parse('O7777'), 0o7777)
+
+    def test_hexadecimal(self):
+        parser = hexadecimal
+        self.assertEqual(parser.parse('x0'), 0x0)
+        self.assertEqual(parser.parse('x1'), 0x1)
+        self.assertEqual(parser.parse('X1'), 0x1)
+        self.assertEqual(parser.parse('x10'), 0x10)
+        self.assertEqual(parser.parse('X10'), 0x10)
+        self.assertEqual(parser.parse('xffff'), 0xffff)
+        self.assertEqual(parser.parse('Xffff'), 0xffff)
+
+    def test_integer(self):
+        parser = integer
+        self.assertEqual(parser.parse('0'), 0)
+        self.assertEqual(parser.parse('-1'), -1)
+        self.assertEqual(parser.parse('+1'), 1)
+        self.assertEqual(parser.parse('0b10'), 0b10)
+        self.assertEqual(parser.parse('-0b10'), -0b10)
+        self.assertEqual(parser.parse('+0b10'), 0b10)
+        self.assertEqual(parser.parse('0o10'), 0o10)
+        self.assertEqual(parser.parse('+0o10'), 0o10)
+        self.assertEqual(parser.parse('-0o10'), -0o10)
+        self.assertEqual(parser.parse('0x10'), 0x10)
+        self.assertEqual(parser.parse('+0x10'), 0x10)
+        self.assertEqual(parser.parse('-0x10'), -0x10)
 
 class ParserGeneratorTest(unittest.TestCase):
     '''Test the implementation of Parser Generator.(generate)'''
