@@ -381,7 +381,7 @@ def try_choices_longest(*choices):
     def longest(text, index):
         results = list(map(lambda choice: choice(text, index), choices))
         if all(not result.status for result in results):
-            return Value.failure(index, 'does not match with any choices {}'.format(choices))
+            return Value.failure(index, 'does not match with any choices {}'.format(results))
 
         successful_results = list(filter(lambda result: result.status, results))
         return max(successful_results, key=lambda result: result.index)
