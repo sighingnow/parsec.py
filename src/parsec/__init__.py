@@ -719,7 +719,7 @@ def success_with(value, advance=False):
 def fail_with(message):
     return Parser(lambda _, index: Value.failure(index, message))
 
-def exclude(p: Parser, exclude: Parser):
+def exclude(p, exclude):
     '''Fails parser p if parser `exclude` matches'''
     @Parser
     def exclude_parser(text, index):
