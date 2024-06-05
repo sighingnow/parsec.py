@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from __future__ import annotations
 
 '''
 A universal Python parser combinator library inspired by Parsec library of Haskell.
