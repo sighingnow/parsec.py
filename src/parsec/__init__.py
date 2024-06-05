@@ -770,9 +770,14 @@ def regex(exp, flags=0):
             return Value.failure(index, exp.pattern)
     return regex_parser
 
-newline = string("\n").desc("LF")
-crlf = (string("\r") >> newline).desc("CRLF")
-end_of_line = (newline | crlf).desc("EOL")
+def newline():
+    return string("\n").desc("LF")
+
+def crlf():
+    return (string("\r") >> newline).desc("CRLF")
+
+def end_of_line():
+    return (newline | crlf).desc("EOL")
 
 ##########################################################################
 # Useful utility parsers
