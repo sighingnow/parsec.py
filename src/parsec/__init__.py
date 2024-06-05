@@ -280,6 +280,7 @@ class Parser(object):
             return ParseError.loc_info(text, index)
 
         def mark(value, index):
+            @Parser
             def mark(text, resultant_index):
                 return Value.success(resultant_index, (pos(text, index), value, pos(text, resultant_index)))
             return mark
