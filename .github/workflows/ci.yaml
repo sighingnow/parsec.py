@@ -24,4 +24,6 @@ jobs:
     - run: coverage run setup.py test
     - run: coverage report -m
 
-    - run: mypy .
+    - if: ${{ matrix.python-version != '3.6' && matrix.python-version != '3.7' }}
+      run: mypy .
+      
