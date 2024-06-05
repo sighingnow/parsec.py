@@ -75,7 +75,7 @@ class Value(namedtuple('Value', 'status index value expected')):
             return self
         if not other.status:
             return other
-        return Value(True, other.index, self.value + other.value, None)
+        return Value.success(other.index, self.value + other.value)
 
     def update_index(self, index=None):
         if index is None:
@@ -86,15 +86,14 @@ class Value(namedtuple('Value', 'status index value expected')):
     @staticmethod
     def combinate(values):
         '''Aggregate multiple values into tuple'''
-        prev_v = None
+        if not values:
+            raise TypeError("cannot call combinate without any value")
+
         for v in values:
-            if prev_v:
-                if not v:
-                    return prev_v
             if not v.status:
                 return v
         out_values = tuple([v.value for v in values])
-        return Value(True, values[-1].index, out_values, None)
+        return Value.success(values[-1].index, out_values)
 
     def __str__(self):
         return 'Value: state: {},  @index: {}, values: {}, expected: {}'.format(
@@ -159,7 +158,13 @@ class Parser(object):
         @Parser
         def bind_parser(text, index):
             res = self(text, index)
-            return res if not res.status else fn(res.value)(text, res.index)
+            if not res.status:
+                return res
+
+            try:
+                return fn(res.value, index)(text, res.index)
+            except TypeError:
+                return fn(res.value)(text, res.index)
         return bind_parser
 
     def compose(self, other):
@@ -263,14 +268,14 @@ class Parser(object):
         def pos(text, index):
             return ParseError.loc_info(text, index)
 
-        @Parser
-        def mark_parser(text, index):
-            res = self(text, index)
-            if res.status:
-                return Value.success(res.index, (pos(text, index), res.value, pos(text, res.index)))
-            else:
-                return res  # failed.
-        return mark_parser
+        return self >= (
+            lambda value, index: Parser(
+                lambda text, resultant_index: Value.success(
+                    resultant_index,
+                    (pos(text, index), value, pos(text, resultant_index)),
+                )
+            )
+        )
 
     def desc(self, description):
         '''Describe a parser, when it failed, print out the description text.'''
@@ -358,9 +363,12 @@ def choice(pa, pb):
 
 
 def try_choice(pa, pb):
-    '''Choice one from two parsers with backtrack, implements the operator of `(^)`.'''
+    '''Choose one from two parsers with backtrack, implements the operator of `(^)`.'''
     return pa.try_choice(pb)
 
+def try_choices(*choices):
+    '''Choose one from the choices'''
+    return reduce(try_choice, choices)
 
 def skip(pa, pb):
     '''Ends with a specified parser, and at the end parser consumed the end flag.
@@ -432,8 +440,8 @@ def generate(fn):
     @wraps(fn)
     @Parser
     def generated(text, index):
-        iterator, value = fn(), None
         try:
+            iterator, value = fn(), None
             while True:
                 parser = iterator.send(value)
                 res = parser(text, index)
@@ -448,11 +456,14 @@ def generate(fn):
                 return Value.success(index, endval)
         except RuntimeError as error:
             stop = error.__cause__
-            endval = stop.value
-            if isinstance(endval, Parser):
-                return endval(text, index)
-            else:
-                return Value.success(index, endval)
+            if isinstance(stop, StopIteration) and hasattr(stop, "value"): 
+                endval = stop.value
+                if isinstance(endval, Parser):
+                    return endval(text, index)
+                else:
+                    return Value.success(index, endval)
+            # not what we want
+            raise error from None
     return generated.desc(fn.__name__)
 
 
@@ -473,6 +484,7 @@ def times(p, mint, maxt=None):
             res = p(text, index)
             if res.status:
                 if maxt == float('inf') and res.index == index:
+                    # TODO: check whether it reaches mint
                     # prevent infinite loop, see GH-43
                     break
                 values.append(res.value)

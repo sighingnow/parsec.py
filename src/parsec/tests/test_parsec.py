@@ -9,6 +9,7 @@ Test the basic functions of parsec.py.
 
 __author__ = 'He Tao, sighingnow@gmail.com'
 
+import re
 import random
 import unittest
 
@@ -16,7 +17,8 @@ from parsec import *
 
 class ParseErrorTest(unittest.TestCase):
     def test_loc_info_should_throw_on_invalid_index(self):
-        self.assertRaises(ValueError, ParseError.loc_info, "", 1)
+        with self.assertRaises(ValueError):
+            ParseError.loc_info("", 1)
 
     def test_loc_info_should_use_default_values_when_text_is_not_str(self):
         self.assertEqual(ParseError.loc_info([0], 0), (0, -1))
@@ -26,6 +28,33 @@ class ParseErrorTest(unittest.TestCase):
         # trigger ValueError
         self.assertTrue(str(ParseError("foo bar", "", 1)))
 
+class ValueTest(unittest.TestCase):
+    def test_aggregate(self):
+        value = Value.failure(-1, "this")
+        self.assertEqual(value.aggregate(), value)
+
+        value = Value.success(-1, ["foo"])
+        self.assertEqual(value.aggregate(), value)
+
+        other = Value.failure(-1, "that")
+        self.assertEqual(value.aggregate(other), other)
+
+        other = Value.success(0, ["bar"])
+        self.assertEqual(value.aggregate(other), Value.success(0, ["foo", "bar"]))
+
+    def test_update_index(self):
+        value = Value.success(0, None)
+        self.assertEqual(value.update_index(), value)
+        self.assertEqual(value.update_index(1), Value.success(1, None))
+
+    def test_combinate(self):
+        with self.assertRaisesRegex(TypeError, "cannot call combinate without any value"):
+            Value.combinate([])
+
+        self.assertEqual(Value.combinate([Value.success(0, None)]), Value.success(0, (None,)))
+        self.assertEqual(Value.combinate([Value.failure(0, "expect to fail")]), Value.failure(0, "expect to fail"))
+        self.assertEqual(Value.combinate([Value.success(0, None), Value.failure(0, "expect to fail")]), Value.failure(0, "expect to fail"))
+
 class ParsecTest(unittest.TestCase):
     '''Test the implementation of Text.Parsec. (The final test for all apis)'''
     def test_times_with_then(self):
@@ -34,6 +63,11 @@ class ParsecTest(unittest.TestCase):
         self.assertRaises(ParseError, parser.parse, 'xy1')
         self.assertRaises(ParseError, parser.parse, 'xyz')
         self.assertRaises(ParseError, parser.parse, 'xyzw')
+
+    def test_times_inf_maxt(self):
+        parser = times(eof(), 1, float('inf'))
+        self.assertEqual(parser.parse(''), [])
+        # self.assertEqual(parser.parse('abc'), ['a', 'b', 'c'])
 
     def test_many_with_then(self):
         parser = many(string('x')) >> string('y')
@@ -117,10 +151,30 @@ class ParsecPrimTest(unittest.TestCase):
         self.assertEqual(parser.parse('xy'), 'xy')
         self.assertEqual(parser.parse('xz'), 'xz')
 
+    def test_try_choices(self):
+        # cannot try_choices without choices
+        with self.assertRaisesRegex(TypeError, r"reduce\(\) of empty iterable with no initial value"):
+            try_choices()
+
+        parser = try_choices(string('x'))
+        self.assertEqual(parser.parse('x'), 'x')
+
+        parser = try_choices(string('yz'), string('y'))
+        self.assertEqual(parser.parse('yz'), 'yz')
+        self.assertEqual(parser.parse('y'), 'y')
+
+        parser = try_choices(string('x'), string('yz'), string('y'))
+        self.assertEqual(parser.parse('x'), 'x')
+        self.assertEqual(parser.parse('yz'), 'yz')
+        self.assertEqual(parser.parse('y'), 'y')
+
     def test_ends_with(self):
         parser = string('x') < string('y')
         self.assertEqual(parser.parse('xy'), 'x')
         self.assertRaises(ParseError, parser.parse, 'xx')
+
+        with self.assertRaises(ParseError):
+            parser.parse('y')
 
     def test_parsecmap(self):
 
@@ -144,7 +198,7 @@ class ParsecPrimTest(unittest.TestCase):
         self.assertRaises(ParseError, parser.parse, 'y')
 
     def test_mark(self):
-        parser = many(mark(many(letter())) << string("\n"))
+        parser = many1(mark(many(letter())) << string("\n"))
 
         lines = parser.parse("asdf\nqwer\n")
 
@@ -159,6 +213,9 @@ class ParsecPrimTest(unittest.TestCase):
         self.assertEqual(start, (1, 0))
         self.assertEqual(letters, ['q', 'w', 'e', 'r'])
         self.assertEqual(end, (1, 4))
+
+        with self.assertRaises(ParseError):
+            parser.parse("1")
 
     def test_choice_with_compose(self):
         parser = (string('\\') >> string('y')) | string('z')
@@ -330,6 +387,9 @@ class ParsecCombinatorTest(unittest.TestCase):
         self.assertEqual(parser.parse('<'), "<")
         self.assertEqual(parser.parse('<='), "<=")
 
+        with self.assertRaises(ParseError):
+            parser.parse('>')
+
         parser = string('<') ^ string('<=')
         self.assertEqual(parser.parse('<'), "<")
         self.assertEqual(parser.parse('<='), "<")
@@ -371,6 +431,9 @@ class ParsecCharTest(unittest.TestCase):
         self.assertRaises(ParseError, parser.parse, 'x')
         # combinator only accepts string as input
         self.assertRaises(ParseError, parser.parse, [1])
+
+        parser = regex(re.compile(r'[0-9]'))
+        self.assertEqual(parser.parse('1'), '1')
 
     def test_one_of(self):
         parser = one_of('abc')
@@ -498,12 +561,49 @@ class ParserGeneratorTest(unittest.TestCase):
         def xy():
             yield string('x')
             yield string('y')
+
+            # NOTE: this will appear in the form of a RuntimeError caused by StopIteration
             r = StopIteration('success')
             r.value = 'success'  # for pre-3.3 Python
             raise r
 
         parser = xy
         self.assertEqual(parser.parse('xy'), 'success')
+
+        @generate
+        def yz():
+            r = StopIteration()
+            r.value = string("yz")
+            raise r
+
+        parser = yz
+        self.assertEqual(parser.parse('yz'), 'yz')
+
+        @generate
+        def stop_iteration_without_value():
+            # simulate python 2
+            r = StopIteration()
+            delattr(r, "value")
+            raise RuntimeError from r
+
+        parser = stop_iteration_without_value
+        self.assertEqual(parser.parse("whatever"), None) 
+
+        @generate
+        def stop_iteration_with_parser_as_value():
+            raise RuntimeError from StopIteration(string("yz"))
+
+        parser = stop_iteration_with_parser_as_value
+        self.assertEqual(parser.parse("yz"), "yz")
+
+        @generate
+        def runtime_error():
+            r = RuntimeError
+            raise r
+
+        parser = runtime_error
+        with self.assertRaises(RuntimeError):
+            parser.parse("whatever")
 
 if __name__ == '__main__':
     unittest.main()

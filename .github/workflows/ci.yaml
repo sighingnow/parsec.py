@@ -23,3 +23,5 @@ jobs:
 
     - run: coverage run setup.py test
     - run: coverage report -m
+
+    - run: mypy .
