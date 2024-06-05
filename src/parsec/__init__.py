@@ -170,10 +170,7 @@ class Parser(object):
             if not res.status:
                 return res
 
-            try:
-                return fn(res.value, index)(text, res.index)
-            except TypeError:
-                return fn(res.value)(text, res.index)
+            return (fn(res.value, index) if len(argspec.args) == 2 else fn(res.value))(text, res.index)
         return bind_parser
 
     def compose(self, other):
