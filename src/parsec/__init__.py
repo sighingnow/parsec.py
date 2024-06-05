@@ -786,7 +786,7 @@ def validate(predicate):
 
 sign = string("-").result(operator.neg).desc("'-'") | optional(string("+").result(lambda x: x).desc("'+'"), lambda x: x)
 
-def number(base: int, digit: Parser[str]) -> Parser[int]:
+def number(base, digit):
     return many1(digit).parsecmap(
         lambda digits: reduce(lambda accumulation, digit: accumulation * base + int(digit, base), digits, 0),
     )
