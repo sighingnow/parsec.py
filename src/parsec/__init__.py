@@ -784,7 +784,7 @@ def validate(predicate):
 # Text.Parsec.Number
 ##########################################################################
 
-sign = string("-").result(operator.neg).desc("'-'") | optional(string("+").result(lambda x: x).desc("'+'"), lambda x: x)
+sign = string("-").result(operator.neg).desc("'-'") | optional(string("+").desc("'+'")).result(lambda x: x)
 
 def number(base, digit):
     return many1(digit).parsecmap(
