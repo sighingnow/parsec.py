@@ -279,14 +279,12 @@ class Parser(object):
         def pos(text, index):
             return ParseError.loc_info(text, index)
 
-        return self >= (
-            lambda value, index: Parser(
-                lambda text, resultant_index: Value.success(
-                    resultant_index,
-                    (pos(text, index), value, pos(text, resultant_index)),
-                )
-            )
-        )
+        def mark(value, index):
+            def mark(text, resultant_index):
+                return Value.success(resultant_index, (pos(text, index), value, pos(text, resultant_index)))
+            return mark
+
+        return self >= mark
 
     def desc(self, description):
         '''Describe a parser, when it failed, print out the description text.'''
