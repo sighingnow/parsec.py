@@ -5,7 +5,7 @@ from setuptools import setup, find_packages # type: ignore[import-untyped]
 
 setup(
     name = 'parsec',
-    version = '3.16',
+    version = '3.17',
     description = 'parser combinator.',
     long_description = 'A universal Python parser combinator library inspired by Parsec library of Haskell.',
     author = 'He Tao',
