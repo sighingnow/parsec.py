@@ -1,0 +1,15 @@
+[run]
+relative_files = True
+branch = True
+omit =
+    test_*.py
+    src/parsec/tests/*
+
+# coverage.py does not currenly handle @overload decorated methods gracefully.
+# overloaded methods should be ignored because they are not allowed to contain code
+[report]
+exclude_lines =
+    pragma: not covered
+    @overload
+    \.\.\.
+    if TYPE_CHECKING:

@@ -7,15 +7,27 @@ A universal Python parser combinator library inspired by Parsec library of Haske
 
 __author__ = 'He Tao, sighingnow@gmail.com'
 
+try:
+    from inspect import getfullargspec as getargspec
+except ImportError:
+    from inspect import getargspec as getargspec
+
+import operator
 import re
+import inspect
 import warnings
-from functools import wraps
+from functools import reduce, wraps
 from collections import namedtuple
 
 ##########################################################################
 # Text.Parsec.Error
 ##########################################################################
 
+def expected_arguments(callable):
+    if inspect.isbuiltin(callable):
+        # NOTE: we cannot perform introspection on builtins
+        return 1
+    return len(getargspec(callable).args)
 
 class ParseError(RuntimeError):
     '''Type for parse error.'''
@@ -74,7 +86,7 @@ class Value(namedtuple('Value', 'status index value expected')):
             return self
         if not other.status:
             return other
-        return Value(True, other.index, self.value + other.value, None)
+        return Value.success(other.index, self.value + other.value)
 
     def update_index(self, index=None):
         if index is None:
@@ -85,15 +97,14 @@ class Value(namedtuple('Value', 'status index value expected')):
     @staticmethod
     def combinate(values):
         '''Aggregate multiple values into tuple'''
-        prev_v = None
+        if not values:
+            raise TypeError("cannot call combinate without any value")
+
         for v in values:
-            if prev_v:
-                if not v:
-                    return prev_v
             if not v.status:
                 return v
         out_values = tuple([v.value for v in values])
-        return Value(True, values[-1].index, out_values, None)
+        return Value.success(values[-1].index, out_values)
 
     def __str__(self):
         return 'Value: state: {},  @index: {}, values: {}, expected: {}'.format(
@@ -121,6 +132,11 @@ class Parser(object):
     def __call__(self, text, index):
         '''call wrapped function.'''
         return self.fn(text, index)
+
+    def __repr__(self):
+        if hasattr(self.fn, "__name__"):
+            return self.fn.__name__
+        return super().__repr__()
 
     def parse(self, text):
         '''Parses a given string `text`.'''
@@ -155,10 +171,17 @@ class Parser(object):
         parser is successful, passes the result to fn, and continues with the
         parser returned from fn.
         '''
+        args_count = expected_arguments(fn)
+        if not 1 <= args_count <= 2:
+            raise TypeError("can only bind on a function with one or two arguments, fn/{}".format(args_count))
+
         @Parser
         def bind_parser(text, index):
             res = self(text, index)
-            return res if not res.status else fn(res.value)(text, res.index)
+            if not res.status:
+                return res
+
+            return (fn(res.value, index) if args_count == 2 else fn(res.value))(text, res.index)
         return bind_parser
 
     def compose(self, other):
@@ -244,36 +267,51 @@ class Parser(object):
                 return res
         return excepts_parser
 
-    def parsecmap(self, fn):
+    def parsecmap(self, fn, star=False):
         '''Returns a parser that transforms the produced value of parser with `fn`.'''
-        return self.bind(lambda res: Parser(lambda _, index: Value.success(index, fn(res))))
+        def mapper(res):
+            # unpack tuple
+            result = fn(*res) if star else fn(res)
+            return success_with(result, advance=False)
+        return self.bind(mapper)
+
+    def map(self, fn, star=False):
+        '''Functor map on the parsed value with `fn`.
+        Alias to parsecmap
+        '''
+        return self.parsecmap(fn, star=star)
 
     def parsecapp(self, other):
         '''Returns a parser that applies the produced value of this parser to the produced value of `other`.'''
         # pylint: disable=unnecessary-lambda
         return self.bind(lambda res: other.parsecmap(lambda x: res(x)))
 
+    def apply(self, other):
+        '''Apply the function produced by self on the result of other.
+        Alias to parsecapp
+        '''
+        return self.parsecapp(other)
+
     def result(self, res):
         '''Return a value according to the parameter `res` when parse successfully.'''
-        return self >> Parser(lambda _, index: Value.success(index, res))
+        return self >> success_with(res, advance=False)
 
     def mark(self):
         '''Mark the line and column information of the result of this parser.'''
         def pos(text, index):
             return ParseError.loc_info(text, index)
 
-        @Parser
-        def mark_parser(text, index):
-            res = self(text, index)
-            if res.status:
-                return Value.success(res.index, (pos(text, index), res.value, pos(text, res.index)))
-            else:
-                return res  # failed.
-        return mark_parser
+        def mark(value, index):
+            @Parser
+            def mark(text, resultant_index):
+                return Value.success(resultant_index, (pos(text, index), value, pos(text, resultant_index)))
+            return mark
+
+        return self >= mark
 
     def desc(self, description):
         '''Describe a parser, when it failed, print out the description text.'''
-        return self | Parser(lambda _, index: Value.failure(index, description))
+        return self | fail_with(description)
 
     def __or__(self, other):
         '''Implements the `(|)` operator, means `choice`.'''
@@ -357,9 +395,29 @@ def choice(pa, pb):
 
 
 def try_choice(pa, pb):
-    '''Choice one from two parsers with backtrack, implements the operator of `(^)`.'''
+    '''Choose one from two parsers with backtrack, implements the operator of `(^)`.'''
     return pa.try_choice(pb)
 
+def try_choices(*choices):
+    '''Choose one from the choices'''
+    return reduce(try_choice, choices)
+
+def try_choices_longest(*choices):
+    if not choices:
+        raise TypeError("choices cannot be empty")
+
+    if not all(isinstance(choice, Parser) for choice in choices):
+        raise TypeError("choices can only be Parsers")
+
+    @Parser
+    def longest(text, index):
+        results = list(map(lambda choice: choice(text, index), choices))
+        if all(not result.status for result in results):
+            return Value.failure(index, 'does not match with any choices {}'.format(list(zip(choices, results))))
+
+        successful_results = list(filter(lambda result: result.status, results))
+        return max(successful_results, key=lambda result: result.index)
+    return longest
 
 def skip(pa, pb):
     '''Ends with a specified parser, and at the end parser consumed the end flag.
@@ -431,8 +489,8 @@ def generate(fn):
     @wraps(fn)
     @Parser
     def generated(text, index):
-        iterator, value = fn(), None
         try:
+            iterator, value = fn(), None
             while True:
                 parser = iterator.send(value)
                 res = parser(text, index)
@@ -447,11 +505,14 @@ def generate(fn):
                 return Value.success(index, endval)
         except RuntimeError as error:
             stop = error.__cause__
-            endval = stop.value
-            if isinstance(endval, Parser):
-                return endval(text, index)
-            else:
-                return Value.success(index, endval)
+            if isinstance(stop, StopIteration) and hasattr(stop, "value"): 
+                endval = stop.value
+                if isinstance(endval, Parser):
+                    return endval(text, index)
+                else:
+                    return Value.success(index, endval)
+            # not what we want
+            raise error from None
     return generated.desc(fn.__name__)
 
 
@@ -472,6 +533,7 @@ def times(p, mint, maxt=None):
             res = p(text, index)
             if res.status:
                 if maxt == float('inf') and res.index == index:
+                    # TODO: check whether it reaches mint
                     # prevent infinite loop, see GH-43
                     break
                 values.append(res.value)
@@ -628,77 +690,42 @@ def sepEndBy1(p, sep):
 # Text.Parsec.Char
 ##########################################################################
 
+def satisfy(predicate, failure=None):
+    @Parser
+    def satisfy_parser(text, index=0):
+        if index < len(text) and predicate(text[index]):
+            return Value.success(index + 1, text[index])
+        else:
+            return Value.failure(index, failure or "does not satisfy predicate")
+    return satisfy_parser
 
 def any():
     '''Parses a arbitrary character.'''
-    @Parser
-    def any_parser(text, index=0):
-        if index < len(text):
-            return Value.success(index + 1, text[index])
-        else:
-            return Value.failure(index, 'a random char')
-    return any_parser
-
+    return satisfy(lambda _: True, 'a random char')
 
 def one_of(s):
     '''Parses a char from specified string.'''
-    @Parser
-    def one_of_parser(text, index=0):
-        if index < len(text) and text[index] in s:
-            return Value.success(index + 1, text[index])
-        else:
-            return Value.failure(index, 'one of {}'.format(s))
-    return one_of_parser
-
+    return satisfy(lambda c: c in s, 'one of {}'.format(s))
 
 def none_of(s):
     '''Parses a char NOT from specified string.'''
-    @Parser
-    def none_of_parser(text, index=0):
-        if index < len(text) and text[index] not in s:
-            return Value.success(index + 1, text[index])
-        else:
-            return Value.failure(index, 'none of {}'.format(s))
-    return none_of_parser
-
+    return satisfy(lambda c: c not in s, 'none of {}'.format(s))
 
 def space():
     '''Parses a whitespace character.'''
-    @Parser
-    def space_parser(text, index=0):
-        if index < len(text) and text[index].isspace():
-            return Value.success(index + 1, text[index])
-        else:
-            return Value.failure(index, 'one space')
-    return space_parser
-
+    return satisfy(str.isspace, 'one space')
 
 def spaces():
     '''Parses zero or more whitespace characters.'''
     return many(space())
 
-
 def letter():
     '''Parse a letter in alphabet.'''
-    @Parser
-    def letter_parser(text, index=0):
-        if index < len(text) and text[index].isalpha():
-            return Value.success(index + 1, text[index])
-        else:
-            return Value.failure(index, 'a letter')
-    return letter_parser
-
+    return satisfy(str.isalpha, 'a letter')
 
 def digit():
     '''Parse a digit.'''
-    @Parser
-    def digit_parser(text, index=0):
-        if index < len(text) and text[index].isdigit():
-            return Value.success(index + 1, text[index])
-        else:
-            return Value.failure(index, 'a digit')
-    return digit_parser
-
+    return satisfy(str.isdigit, 'a digit')
 
 def eof():
     '''Parses EOF flag of a string.'''
@@ -709,7 +736,6 @@ def eof():
         else:
             return Value.failure(index, 'EOF')
     return eof_parser
-
 
 def string(s):
     '''Parses a string.'''
@@ -744,17 +770,26 @@ def regex(exp, flags=0):
             return Value.failure(index, exp.pattern)
     return regex_parser
 
+def newline():
+    return string("\n").desc("LF")
+
+def crlf():
+    return (string("\r") >> newline()).desc("CRLF")
+
+def end_of_line():
+    return (newline() | crlf()).desc("EOL")
 
 ##########################################################################
 # Useful utility parsers
 ##########################################################################
 
+def success_with(value, advance=False):
+    return Parser(lambda _, index: Value.success(index + int(advance), value))
 
 def fail_with(message):
     return Parser(lambda _, index: Value.failure(index, message))
 
-
-def exclude(p: Parser, exclude: Parser):
+def exclude(p, exclude):
     '''Fails parser p if parser `exclude` matches'''
     @Parser
     def exclude_parser(text, index):
@@ -765,8 +800,7 @@ def exclude(p: Parser, exclude: Parser):
             return p(text, index)
     return exclude_parser
 
-
-def lookahead(p: Parser):
+def lookahead(p):
     '''Parses without consuming'''
     @Parser
     def lookahead_parser(text, index):
@@ -778,7 +812,7 @@ def lookahead(p: Parser):
     return lookahead_parser
 
 
-def unit(p: Parser):
+def unit(p):
     '''Converts a parser into a single unit. Only consumes input if the parser succeeds'''
     @Parser
     def unit_parser(text, index):
@@ -789,7 +823,14 @@ def unit(p: Parser):
             return Value.failure(index, res.expected)
     return unit_parser
 
-
+def between(open, close, parser):
+    @generate
+    def between_parser():
+        yield open
+        results = yield parser
+        yield close
+        return results
+    return between_parser
 
 def fix(fn):
     '''Allow recursive parser using the Y combinator trick.
@@ -800,3 +841,41 @@ def fix(fn):
        See also: https://github.com/sighingnow/parsec.py/issues/39.
     '''
     return (lambda x: x(x))(lambda y: fn(lambda *args: y(y)(*args)))
+
+def validate(predicate):
+    def validator(value):
+        if predicate(value):
+            return success_with(value, advance=False)
+        else:
+            return fail_with(f"{value} does not satisfy the given predicate {predicate}")
+    return validator
+
+##########################################################################
+# Text.Parsec.Number
+##########################################################################
+
+sign = string("-").result(operator.neg).desc("'-'") | optional(string("+").desc("'+'")).result(lambda x: x)
+
+def number(base, digit):
+    return many1(digit).parsecmap(
+        lambda digits: reduce(lambda accumulation, digit: accumulation * base + int(digit, base), digits, 0),
+    )
+
+binary_digit = one_of("01").desc("binary_digit")
+binary_number = number(2, binary_digit).desc("binary_number")
+binary = (one_of("bB") >> binary_number).desc("binary")
+
+octal_digit = one_of("01234567").desc("octal_digit")
+octal_number = number(8, octal_digit).desc("octal_number")
+octal = (one_of("oO") >> octal_number).desc("octal")
+
+hexadecimal_digit = one_of("0123456789ABCDEFabcdef").desc("hexadecimal_digit")
+hexadecimal_number = number(16, hexadecimal_digit).desc("hexadecimal_number")
+hexadecimal = (one_of("xX") >> hexadecimal_number).desc("hexadecimal")
+
+decimal_number = number(10, digit()).desc("decimal_number")
+decimal = decimal_number
+
+zero_number = string("0") >> (hexadecimal | octal | binary | decimal | success_with(0))
+natural = zero_number | decimal
+integer = sign.apply(natural)

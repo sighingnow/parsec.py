@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        python-version: ['3.5', '3.6', '3.7', '3.8', '3.9', '3.10']
+        python-version: ['3.6', '3.7', '3.8', '3.9', '3.10', '3.11', '3.12']
     steps:
     - uses: actions/checkout@v2
 
@@ -19,4 +19,11 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - run: python setup.py test
+    - run: pip install -e .[dev]
+
+    - run: coverage run setup.py test
+    - run: coverage report -m
+
+    - if: ${{ matrix.python-version != '3.6' && matrix.python-version != '3.7' }}
+      run: mypy .
+      
